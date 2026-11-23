@@ -1,0 +1,5 @@
+{
+  "name": "bee-devices",
+  "type": "angular",
+  "integrations": {"capacitor": {}}
+}

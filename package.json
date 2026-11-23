@@ -1,0 +1,35 @@
+{
+  "name": "bee-devices",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bee Projects Android companion for connected devices",
+  "scripts": {
+    "start": "ng serve",
+    "build": "ng build",
+    "build:android": "ng build && npx cap sync android",
+    "android": "npx cap open android"
+  },
+  "dependencies": {
+    "@angular/common": "^19.2.0",
+    "@angular/compiler": "^19.2.0",
+    "@angular/core": "^19.2.0",
+    "@angular/forms": "^19.2.0",
+    "@angular/platform-browser": "^19.2.0",
+    "@angular/router": "^19.2.0",
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/core": "^7.4.3",
+    "@capacitor-mlkit/barcode-scanning": "^7.2.0",
+    "@ionic/angular": "^8.7.5",
+    "ionicons": "^7.4.0",
+    "rxjs": "~7.8.1",
+    "tslib": "^2.8.1",
+    "zone.js": "~0.15.1"
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "^19.2.0",
+    "@angular/cli": "^19.2.0",
+    "@angular/compiler-cli": "^19.2.0",
+    "@capacitor/cli": "^7.4.3",
+    "typescript": "~5.8.3"
+  }
+}
