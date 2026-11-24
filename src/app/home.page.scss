@@ -43,3 +43,24 @@ ion-button[fill="outline"] { --border-color:#d8dee8; --color:#465367; }
 .step small { margin-top:3px; color:#8792a3; font-size:10px; }
 .error-note { margin:18px 2px 0; padding:12px 14px; border:1px solid #f4c9c4; border-radius:12px; background:#fff3f1; color:#a43d32; font-size:12px; line-height:1.5; }
 footer { margin:27px 0 5px; text-align:center; color:#a0a9b6; font-size:10px; }
+
+
+/* Device lifecycle screens */
+ion-toolbar ion-button { --color:#f8fafc; }
+.page-shell.is-minimal { min-height:calc(100% - 10px); display:flex; flex-direction:column; justify-content:center; }
+.connected-state { display:flex; flex-direction:column; align-items:center; text-align:center; padding:30px 10px; }
+.connected-mark { display:grid; place-items:center; width:88px; height:88px; margin-bottom:28px; border-radius:28px; background:#e4f6eb; color:#219653; font-size:42px; box-shadow:0 12px 30px #21965318; }
+.connected-state .eyebrow { color:#219653; }
+.connected-state h1 { margin:18px 0 14px; font-size:42px; }
+.connected-state p { max-width:310px; margin:0 0 22px; color:#697586; font-size:14px; line-height:1.65; }
+.pulse-dot.is-green { background:#219653; box-shadow:0 0 0 4px #dff3e7; }
+.pulse-dot.is-pending { background:#d99a28; box-shadow:0 0 0 4px #fff0d2; }
+.pending-intro { margin-bottom:20px; }
+.pending-intro h1 { font-size:38px; }
+.pending-card { margin:0; border:1px solid #f0e4d1; border-radius:22px; box-shadow:0 14px 36px #17243b0c; }
+.pending-card ion-card-content { display:flex; flex-direction:column; align-items:center; padding:28px 22px; }
+.pending-icon { display:grid; place-items:center; width:64px; height:64px; margin:0 0 18px; border-radius:22px; background:#fff4e2; color:#d99026; font-size:25px; }
+.pending-card h2 { margin:0 0 10px; }
+.pending-card .status-copy { min-height:0; margin-bottom:18px; }
+.pending-meta { display:flex; flex-direction:column; gap:5px; margin:0 0 17px; color:#8792a3; font-size:10px; text-align:center; }
+.pending-meta strong { color:#465367; font-size:11px; font-weight:650; }
