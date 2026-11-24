@@ -2,7 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   IonButton, IonContent, IonIcon, IonSpinner, IonText, IonToolbar, IonHeader, IonTitle,
-  IonCard, IonCardContent, IonBadge
+  IonCard, IonCardContent, IonBadge, IonPopover, IonItem
 } from '@ionic/angular/standalone';
 import { BarcodeScanner, BarcodeFormat } from '@capacitor-mlkit/barcode-scanning';
 import { Capacitor } from '@capacitor/core';
@@ -15,7 +15,7 @@ type ViewState = 'ready' | 'scanning' | 'pairing' | 'pending' | 'connected' | 'e
   selector: 'bee-home',
   standalone: true,
   imports: [CommonModule, IonButton, IonContent, IonIcon, IonSpinner, IonText, IonToolbar,
-    IonHeader, IonTitle, IonCard, IonCardContent, IonBadge],
+    IonHeader, IonTitle, IonCard, IonCardContent, IonBadge, IonPopover, IonItem],
   template: `
     <ion-header class="ion-no-border">
       <ion-toolbar>
@@ -152,17 +152,11 @@ export class HomePage implements OnInit, OnDestroy {
   private async confirmUnlink(): Promise<void> {
     if (!this.deviceId || this.busy) return;
     const pending = this.state === 'pending';
-    const alert = document.createElement('ion-alert');
-    alert.header = pending ? 'Cancelar solicitud' : 'Desvincular dispositivo';
-    alert.message = pending
+    const message = pending
       ? 'Se cancelará la solicitud pendiente y este móvil dejará de estar vinculado.'
       : 'Este móvil perderá el acceso a Bee Core. Para volver a utilizarlo tendrás que escanear un nuevo QR y solicitar autorización.';
-    alert.buttons = [
-      { text: 'Mantener', role: 'cancel' },
-      { text: pending ? 'Cancelar solicitud' : 'Desvincular', role: 'destructive', handler: () => { void this.unlinkDevice(); } }
-    ];
-    document.body.appendChild(alert);
-    await alert.present();
+    if (!window.confirm(message)) return;
+    await this.unlinkDevice();
   }
 
   private async unlinkDevice(): Promise<void> {
