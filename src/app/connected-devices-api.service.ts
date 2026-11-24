@@ -41,6 +41,14 @@ export class ConnectedDevicesApiService {
     });
   }
 
+  async unlink(deviceId: string, pairingSecret: string): Promise<void> {
+    await this.request<{ success: boolean }>('/device/unlink', {
+      method: 'POST',
+      body: { deviceId },
+      headers: new HttpHeaders({ 'x-device-pairing-secret': pairingSecret })
+    });
+  }
+
   async heartbeat(deviceCredential: string): Promise<void> {
     await this.request<{ success: boolean }>('/device/heartbeat', {
       method: 'POST',

@@ -2,7 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   IonButton, IonContent, IonIcon, IonSpinner, IonText, IonToolbar, IonHeader, IonTitle,
-  IonCard, IonCardContent, IonBadge
+  IonCard, IonCardContent, IonBadge, IonPopover, IonItem, IonList
 } from '@ionic/angular/standalone';
 import { BarcodeScanner, BarcodeFormat } from '@capacitor-mlkit/barcode-scanning';
 import { Capacitor } from '@capacitor/core';
@@ -15,7 +15,7 @@ type ViewState = 'ready' | 'scanning' | 'pairing' | 'pending' | 'connected' | 'e
   selector: 'bee-home',
   standalone: true,
   imports: [CommonModule, IonButton, IonContent, IonIcon, IonSpinner, IonText, IonToolbar,
-    IonHeader, IonTitle, IonCard, IonCardContent, IonBadge],
+    IonHeader, IonTitle, IonCard, IonCardContent, IonBadge, IonPopover, IonItem, IonList],
   template: `
     <ion-header class="ion-no-border">
       <ion-toolbar>
@@ -24,67 +24,100 @@ type ViewState = 'ready' | 'scanning' | 'pairing' | 'pending' | 'connected' | 'e
           <div><strong>bee<span>devices</span></strong><small> BEE PROJECTS</small></div>
         </div>
         <ion-badge slot="end" color="dark">ANDROID</ion-badge>
+        <ion-button id="device-menu-trigger" slot="end" fill="clear" aria-label="Menú del dispositivo">
+          <ion-icon name="ellipsis-vertical"></ion-icon>
+        </ion-button>
+        <ion-popover trigger="device-menu-trigger" triggerAction="click" dismissOnSelect="true">
+          <ng-template>
+            <ion-content>
+              <ion-list>
+                <ion-item button detail="false" (click)="handleMenuAction()">
+                  {{ menuActionLabel }}
+                </ion-item>
+              </ion-list>
+            </ion-content>
+          </ng-template>
+        </ion-popover>
       </ion-toolbar>
     </ion-header>
 
     <ion-content [fullscreen]="true">
-      <main class="page-shell">
-        <section class="intro">
-          <div class="eyebrow"><span class="pulse-dot"></span> DEVICE COMPANION</div>
-          <h1>Tu dispositivo.<br><em>Conectado.</em></h1>
-          <p>Vincula este móvil con tu espacio de trabajo Bee Projects de forma segura.</p>
-        </section>
+      <main class="page-shell" [class.is-minimal]="state === 'connected'">
+        <ng-container *ngIf="state === 'connected'; else notConnected">
+          <section class="connected-state">
+            <div class="connected-mark"><ion-icon name="checkmark"></ion-icon></div>
+            <div class="eyebrow"><span class="pulse-dot is-green"></span> BEE CORE</div>
+            <h1>Dispositivo<br><em>vinculado.</em></h1>
+            <p>Este dispositivo está autorizado y vinculado correctamente a tu espacio de trabajo.</p>
+            <ion-badge color="success">AUTORIZADO</ion-badge>
+          </section>
+        </ng-container>
 
-        <ion-card class="connection-card">
-          <ion-card-content>
-            <div class="card-topline">
-              <span class="eyebrow">ESTADO DEL DISPOSITIVO</span>
-              <ion-badge [color]="state === 'connected' ? 'success' : state === 'error' ? 'danger' : 'medium'">
-                {{ statusLabel }}
-              </ion-badge>
-            </div>
+        <ng-template #notConnected>
+          <section class="intro" *ngIf="state !== 'pending'">
+            <div class="eyebrow"><span class="pulse-dot"></span> DEVICE COMPANION</div>
+            <h1>Tu dispositivo.<br><em>Conectado.</em></h1>
+            <p>Vincula este móvil con tu espacio de trabajo Bee Projects de forma segura.</p>
+          </section>
 
-            <div class="scanner-visual" [class.is-active]="state === 'scanning'">
-              <div class="scan-frame">
-                <span class="corner tl"></span><span class="corner tr"></span>
-                <span class="corner bl"></span><span class="corner br"></span>
-                <div class="scan-glyph">⌗</div>
-                <div class="scan-line" *ngIf="state === 'scanning'"></div>
+          <section class="intro pending-intro" *ngIf="state === 'pending'">
+            <div class="eyebrow"><span class="pulse-dot is-pending"></span> SOLICITUD ENVIADA</div>
+            <h1>Esperando<br><em>aprobación.</em></h1>
+            <p>Bee Core ha recibido la solicitud. Un administrador debe autorizar este dispositivo.</p>
+          </section>
+
+          <ion-card class="connection-card" *ngIf="state !== 'pending'">
+            <ion-card-content>
+              <div class="card-topline">
+                <span class="eyebrow">ESTADO DEL DISPOSITIVO</span>
+                <ion-badge [color]="state === 'error' ? 'danger' : 'medium'">{{ statusLabel }}</ion-badge>
               </div>
+              <div class="scanner-visual" [class.is-active]="state === 'scanning'">
+                <div class="scan-frame">
+                  <span class="corner tl"></span><span class="corner tr"></span>
+                  <span class="corner bl"></span><span class="corner br"></span>
+                  <div class="scan-glyph">⌗</div>
+                  <div class="scan-line" *ngIf="state === 'scanning'"></div>
+                </div>
+              </div>
+              <h2>{{ heading }}</h2>
+              <p class="status-copy">{{ description }}</p>
+              <ion-button expand="block" size="large" (click)="scanAndPair()" [disabled]="busy">
+                <ion-spinner *ngIf="busy" name="crescent" slot="start"></ion-spinner>
+                <ion-icon *ngIf="!busy" name="qr-code-outline" slot="start"></ion-icon>
+                {{ actionLabel }}
+              </ion-button>
+              <ion-button *ngIf="state === 'error'" expand="block" fill="clear" color="medium" (click)="reset()">
+                Volver a intentarlo
+              </ion-button>
+            </ion-card-content>
+          </ion-card>
+
+          <ion-card class="pending-card" *ngIf="state === 'pending'">
+            <ion-card-content>
+              <div class="pending-icon"><ion-spinner name="crescent"></ion-spinner></div>
+              <h2>Vinculación pendiente</h2>
+              <p class="status-copy">La solicitud está registrada y estamos comprobando si el administrador ya la ha aprobado. No cierres el proceso: puedes salir de la app y volver más tarde.</p>
+              <div class="pending-meta" *ngIf="deviceId">ID de dispositivo <strong>{{ deviceId }}</strong></div>
+              <ion-badge color="warning">PENDIENTE DE APROBACIÓN</ion-badge>
+            </ion-card-content>
+          </ion-card>
+
+          <div class="steps" *ngIf="state !== 'pending'">
+            <div class="step" [class.done]="state === 'connected'">
+              <span>01</span><div><strong>Escanea el QR</strong><small>Lee el código desde Bee Core.</small></div>
             </div>
-
-            <h2>{{ heading }}</h2>
-            <p class="status-copy">{{ description }}</p>
-
-            <ion-button expand="block" size="large" (click)="scanAndPair()" [disabled]="busy || state === 'connected' || state === 'pending'">
-              <ion-spinner *ngIf="busy" name="crescent" slot="start"></ion-spinner>
-              <ion-icon *ngIf="!busy" name="qr-code-outline" slot="start"></ion-icon>
-              {{ actionLabel }}
-            </ion-button>
-
-            <ion-button *ngIf="state === 'error'" expand="block" fill="clear" color="medium" (click)="reset()">
-              Volver a intentarlo
-            </ion-button>
-            <ion-button *ngIf="state === 'connected'" expand="block" fill="outline" color="medium" (click)="sendHeartbeat()">
-              Comprobar conexión
-            </ion-button>
-          </ion-card-content>
-        </ion-card>
-
-        <div class="steps">
-          <div class="step" [class.done]="state === 'pending' || state === 'connected'">
-            <span>01</span><div><strong>Escanea el QR</strong><small>Lee el código desde Bee Core.</small></div>
+            <div class="step" [class.done]="state === 'connected'">
+              <span>02</span><div><strong>Solicita vinculación</strong><small>Bee Core registra este dispositivo.</small></div>
+            </div>
+            <div class="step">
+              <span>03</span><div><strong>Aprueba el acceso</strong><small>Un administrador debe autorizarlo.</small></div>
+            </div>
           </div>
-          <div class="step" [class.done]="state === 'pending' || state === 'connected'">
-            <span>02</span><div><strong>Solicita vinculación</strong><small>Bee Core registra este dispositivo.</small></div>
-          </div>
-          <div class="step" [class.done]="state === 'connected'">
-            <span>03</span><div><strong>Aprueba el acceso</strong><small>Un administrador debe autorizarlo.</small></div>
-          </div>
-        </div>
+        </ng-template>
 
         <div class="error-note" *ngIf="errorMessage">{{ errorMessage }}</div>
-        <footer>Conexión protegida · Bee Core</footer>
+        <footer *ngIf="state !== 'connected'">Conexión protegida · Bee Core</footer>
       </main>
     </ion-content>
   `,
@@ -114,6 +147,49 @@ export class HomePage implements OnInit, OnDestroy {
   ngOnInit(): void {
     document.addEventListener('visibilitychange', this.onVisibilityChange);
     void this.restoreConnection();
+  }
+
+  get menuActionLabel(): string {
+    if (this.state === 'pending') return 'Cancelar solicitud';
+    if (this.state === 'connected') return 'Desvincular dispositivo';
+    return 'Vincular dispositivo';
+  }
+
+  async handleMenuAction(): Promise<void> {
+    if (this.state === 'connected' || this.state === 'pending') {
+      await this.confirmUnlink();
+      return;
+    }
+    await this.scanAndPair();
+  }
+
+  private async confirmUnlink(): Promise<void> {
+    if (!this.deviceId || this.busy) return;
+    const pending = this.state === 'pending';
+    const message = pending
+      ? 'Se cancelará la solicitud pendiente y este móvil dejará de estar vinculado.'
+      : 'Este móvil perderá el acceso a Bee Core. Para volver a utilizarlo tendrás que escanear un nuevo QR y solicitar autorización.';
+    if (!window.confirm(message)) return;
+    await this.unlinkDevice();
+  }
+
+  private async unlinkDevice(): Promise<void> {
+    if (!this.deviceId || !this.deviceCredential || this.busy) return;
+    this.busy = true;
+    this.errorMessage = '';
+    try {
+      await this.api.unlink(this.deviceId, this.deviceCredential);
+      this.stopPolling();
+      await this.clearStoredCredential();
+      this.deviceId = '';
+      this.state = 'ready';
+    } catch (error) {
+      this.errorMessage = error instanceof Error
+        ? error.message
+        : 'No se pudo cancelar la solicitud o desvincular el dispositivo. La credencial se conserva.';
+    } finally {
+      this.busy = false;
+    }
   }
 
   get statusLabel(): string {
