@@ -6,7 +6,7 @@ import {
 } from '@ionic/angular/standalone';
 import { BarcodeScanner, BarcodeFormat } from '@capacitor-mlkit/barcode-scanning';
 import { Capacitor } from '@capacitor/core';
-import { ConnectedDevicesApiService, PairingResult } from './connected-devices-api.service';
+import { ConnectedDevicesApiService } from './connected-devices-api.service';
 import { SecureCredentialStore } from './secure-credential.store';
 
 type ViewState = 'ready' | 'scanning' | 'pairing' | 'pending' | 'connected' | 'error';
