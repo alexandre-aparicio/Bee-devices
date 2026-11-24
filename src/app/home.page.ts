@@ -2,7 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   IonButton, IonContent, IonIcon, IonSpinner, IonText, IonToolbar, IonHeader, IonTitle,
-  IonCard, IonCardContent, IonBadge, IonPopover, IonItem
+  IonCard, IonCardContent, IonBadge, IonPopover, IonItem, IonList
 } from '@ionic/angular/standalone';
 import { BarcodeScanner, BarcodeFormat } from '@capacitor-mlkit/barcode-scanning';
 import { Capacitor } from '@capacitor/core';
@@ -15,7 +15,7 @@ type ViewState = 'ready' | 'scanning' | 'pairing' | 'pending' | 'connected' | 'e
   selector: 'bee-home',
   standalone: true,
   imports: [CommonModule, IonButton, IonContent, IonIcon, IonSpinner, IonText, IonToolbar,
-    IonHeader, IonTitle, IonCard, IonCardContent, IonBadge, IonPopover, IonItem],
+    IonHeader, IonTitle, IonCard, IonCardContent, IonBadge, IonPopover, IonItem, IonList],
   template: `
     <ion-header class="ion-no-border">
       <ion-toolbar>
@@ -24,6 +24,20 @@ type ViewState = 'ready' | 'scanning' | 'pairing' | 'pending' | 'connected' | 'e
           <div><strong>bee<span>devices</span></strong><small> BEE PROJECTS</small></div>
         </div>
         <ion-badge slot="end" color="dark">ANDROID</ion-badge>
+        <ion-button id="device-menu-trigger" slot="end" fill="clear" aria-label="Menú del dispositivo">
+          <ion-icon name="ellipsis-vertical"></ion-icon>
+        </ion-button>
+        <ion-popover trigger="device-menu-trigger" triggerAction="click" dismissOnSelect="true">
+          <ng-template>
+            <ion-content>
+              <ion-list>
+                <ion-item button detail="false" (click)="handleMenuAction()">
+                  {{ menuActionLabel }}
+                </ion-item>
+              </ion-list>
+            </ion-content>
+          </ng-template>
+        </ion-popover>
       </ion-toolbar>
     </ion-header>
 
