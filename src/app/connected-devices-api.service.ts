@@ -62,7 +62,7 @@ export class ConnectedDevicesApiService {
     } catch (error) {
       if (error instanceof HttpErrorResponse) {
         const message = typeof error.error?.error === 'string' ? error.error.error : 'No se pudo conectar con Bee Core.';
-        throw new Error(message);
+        throw new Error(`HTTP ${error.status}: ${message}`);
       }
       throw error;
     }

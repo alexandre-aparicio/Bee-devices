@@ -1,4 +1,4 @@
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   IonButton, IonContent, IonIcon, IonSpinner, IonText, IonToolbar, IonHeader, IonTitle,
@@ -6,7 +6,8 @@ import {
 } from '@ionic/angular/standalone';
 import { BarcodeScanner, BarcodeFormat } from '@capacitor-mlkit/barcode-scanning';
 import { Capacitor } from '@capacitor/core';
-import { ConnectedDevicesApiService, PairingResult } from './connected-devices-api.service';
+import { ConnectedDevicesApiService } from './connected-devices-api.service';
+import { SecureCredentialStore } from './secure-credential.store';
 
 type ViewState = 'ready' | 'scanning' | 'pairing' | 'pending' | 'connected' | 'error';
 
@@ -55,7 +56,7 @@ type ViewState = 'ready' | 'scanning' | 'pairing' | 'pending' | 'connected' | 'e
             <h2>{{ heading }}</h2>
             <p class="status-copy">{{ description }}</p>
 
-            <ion-button expand="block" size="large" (click)="scanAndPair()" [disabled]="busy || state === 'connected'">
+            <ion-button expand="block" size="large" (click)="scanAndPair()" [disabled]="busy || state === 'connected' || state === 'pending'">
               <ion-spinner *ngIf="busy" name="crescent" slot="start"></ion-spinner>
               <ion-icon *ngIf="!busy" name="qr-code-outline" slot="start"></ion-icon>
               {{ actionLabel }}
@@ -89,17 +90,31 @@ type ViewState = 'ready' | 'scanning' | 'pairing' | 'pending' | 'connected' | 'e
   `,
   styleUrls: ['./home.page.scss']
 })
-export class HomePage implements OnDestroy {
+export class HomePage implements OnInit, OnDestroy {
   state: ViewState = 'ready';
   busy = false;
   errorMessage = '';
   deviceId = '';
-  private pairingSecret = '';
   private deviceCredential = '';
   private pollHandle?: ReturnType<typeof setTimeout>;
+  private restoring = false;
   private readonly deviceName = 'Bee Devices · Android';
 
-  constructor(private readonly api: ConnectedDevicesApiService) {}
+  private readonly onVisibilityChange = (): void => {
+    if (document.visibilityState === 'visible' && this.deviceCredential && !this.busy) {
+      void this.refreshStoredConnection();
+    }
+  };
+
+  constructor(
+    private readonly api: ConnectedDevicesApiService,
+    private readonly credentialStore: SecureCredentialStore
+  ) {}
+
+  ngOnInit(): void {
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
+    void this.restoreConnection();
+  }
 
   get statusLabel(): string {
     return ({ ready: 'SIN VINCULAR', scanning: 'ESCANEANDO', pairing: 'CONECTANDO',
@@ -110,8 +125,8 @@ export class HomePage implements OnDestroy {
       : this.state === 'error' ? 'No se pudo vincular' : 'Vincula tu dispositivo';
   }
   get description(): string {
-    if (this.state === 'connected') return 'Este móvil ya está autorizado por Bee Core.';
-    if (this.state === 'pending') return 'Confirma la solicitud desde Connected Devices en Bee Core. Esta pantalla se actualizará automáticamente.';
+    if (this.state === 'connected') return 'Este móvil ya está autorizado por Bee Core. La vinculación se conserva aunque cierres la app o reinicies el teléfono.';
+    if (this.state === 'pending') return 'Confirma la solicitud desde Connected Devices en Bee Core. Comprobaremos automáticamente el estado.';
     if (this.state === 'error') return 'Revisa el código QR y la conexión e inténtalo de nuevo.';
     return 'Abre Connected Devices en Bee Core y escanea el código QR temporal que aparece en pantalla.';
   }
@@ -120,8 +135,62 @@ export class HomePage implements OnDestroy {
       : this.state === 'pairing' ? 'Vinculando…' : this.state === 'scanning' ? 'Abriendo cámara…' : 'Vincular dispositivo';
   }
 
+  private async restoreConnection(): Promise<void> {
+    if (this.restoring) return;
+    this.restoring = true;
+    try {
+      const credential = await this.credentialStore.get();
+      if (!credential) {
+        this.state = 'ready';
+        return;
+      }
+      this.deviceCredential = credential;
+      await this.refreshStoredConnection();
+    } catch {
+      await this.clearStoredCredential();
+      this.state = 'ready';
+      this.errorMessage = 'No se pudo recuperar la vinculación guardada. Escanea un nuevo QR para vincular este móvil.';
+    } finally {
+      this.restoring = false;
+    }
+  }
+
+  private async refreshStoredConnection(): Promise<void> {
+    if (!this.deviceCredential || this.busy) return;
+    this.busy = true;
+    try {
+      const result = await this.api.pairingStatus(this.deviceCredential);
+      this.deviceId = result.deviceId;
+      this.errorMessage = '';
+      if (result.status === 'active') {
+        this.state = 'connected';
+        this.stopPolling();
+      } else if (result.status === 'pending') {
+        this.state = 'pending';
+        this.startApprovalPolling();
+      } else {
+        await this.clearStoredCredential();
+        this.state = 'ready';
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo comprobar la vinculación.';
+      if (message.includes('401') || message.includes('403') || message.includes('404') ||
+          /expired|revoked|inactive|not active|invalid/i.test(message)) {
+        await this.clearStoredCredential();
+        this.state = 'ready';
+        this.errorMessage = 'La vinculación ya no está activa. Escanea un nuevo QR para volver a vincular este móvil.';
+      } else {
+        this.state = this.deviceCredential ? 'pending' : 'ready';
+        this.errorMessage = 'No hay conexión con Bee Core. Conservamos la vinculación y volveremos a comprobarla cuando recuperes Internet.';
+        if (this.deviceCredential) this.startApprovalPolling();
+      }
+    } finally {
+      this.busy = false;
+    }
+  }
+
   async scanAndPair(): Promise<void> {
-    if (this.busy || this.state === 'pending') return;
+    if (this.busy || this.state === 'pending' || this.state === 'connected') return;
     this.errorMessage = '';
     this.busy = true;
     this.state = 'scanning';
@@ -138,9 +207,10 @@ export class HomePage implements OnDestroy {
       this.state = 'pairing';
       const pairing = await this.api.pair(token, this.deviceName);
       this.deviceId = pairing.deviceId;
-      this.pairingSecret = pairing.pairingSecret;
+      this.deviceCredential = pairing.pairingSecret;
+      await this.credentialStore.save(pairing.pairingSecret);
       this.state = 'pending';
-      this.startApprovalPolling(pairing);
+      this.startApprovalPolling();
     } catch (error) {
       this.fail(error instanceof Error ? error.message : 'Error inesperado al vincular el dispositivo.');
     } finally {
@@ -159,28 +229,34 @@ export class HomePage implements OnDestroy {
     return token;
   }
 
-  private startApprovalPolling(pairing: PairingResult): void {
-    const expiresAt = new Date(pairing.approvalExpiresAt).getTime();
+  private startApprovalPolling(): void {
+    this.stopPolling();
     const poll = async (): Promise<void> => {
+      if (!this.deviceCredential) return;
       try {
-        const result = await this.api.pairingStatus(this.pairingSecret);
+        const result = await this.api.pairingStatus(this.deviceCredential);
+        this.deviceId = result.deviceId;
         if (result.status === 'active') {
-          this.deviceCredential = this.pairingSecret;
-          this.pairingSecret = '';
           this.state = 'connected';
+          this.errorMessage = '';
+          this.stopPolling();
           return;
         }
-        if (result.status === 'revoked' || result.status === 'suspended' || result.status === 'expired') {
-          this.fail('La solicitud de vinculación ya no está activa.');
-          return;
+        if (result.status === 'pending') {
+          this.state = 'pending';
+          this.pollHandle = setTimeout(() => void poll(), 5000);
         }
-        if (Date.now() >= expiresAt) {
-          this.fail('La solicitud ha caducado. Genera un nuevo QR en Bee Core.');
-          return;
-        }
-        this.pollHandle = setTimeout(() => void poll(), 3000);
       } catch (error) {
-        this.fail(error instanceof Error ? error.message : 'No se pudo comprobar la autorización.');
+        const message = error instanceof Error ? error.message : '';
+        if (/401|403|404|expired|revoked|inactive|invalid/i.test(message)) {
+          await this.clearStoredCredential();
+          this.state = 'ready';
+          this.errorMessage = 'La solicitud ha caducado o ha sido revocada. Genera un nuevo QR en Bee Core.';
+          this.stopPolling();
+          return;
+        }
+        this.errorMessage = 'Sin conexión con Bee Core. La credencial permanece guardada; reintentaremos automáticamente.';
+        this.pollHandle = setTimeout(() => void poll(), 10000);
       }
     };
     this.pollHandle = setTimeout(() => void poll(), 1500);
@@ -193,31 +269,39 @@ export class HomePage implements OnDestroy {
       await this.api.heartbeat(this.deviceCredential);
       this.errorMessage = '';
     } catch (error) {
-      this.fail(error instanceof Error ? error.message : 'No se pudo comprobar la conexión.');
+      this.errorMessage = error instanceof Error ? error.message : 'No se pudo comprobar la conexión.';
     } finally {
       this.busy = false;
     }
   }
 
-  reset(): void {
-    if (this.pollHandle) clearTimeout(this.pollHandle);
-    this.pairingSecret = '';
-    this.deviceCredential = '';
+  async reset(): Promise<void> {
+    this.stopPolling();
+    await this.clearStoredCredential();
     this.deviceId = '';
     this.errorMessage = '';
     this.state = 'ready';
   }
 
-  private fail(message: string): void {
+  private async clearStoredCredential(): Promise<void> {
+    this.deviceCredential = '';
+    try { await this.credentialStore.clear(); } catch { /* Local data is already considered unusable. */ }
+  }
+
+  private stopPolling(): void {
     if (this.pollHandle) clearTimeout(this.pollHandle);
+    this.pollHandle = undefined;
+  }
+
+  private fail(message: string): void {
     this.busy = false;
     this.errorMessage = message;
     this.state = 'error';
+    if (!this.deviceCredential) this.stopPolling();
   }
 
   ngOnDestroy(): void {
-    if (this.pollHandle) clearTimeout(this.pollHandle);
-    this.pairingSecret = '';
-    this.deviceCredential = '';
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    this.stopPolling();
   }
 }
