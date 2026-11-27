@@ -85,21 +85,21 @@ export class ConnectedDevicesClient {
 
   async clockIn(): Promise<unknown> {
     this.requireCapability("time-tracking.clock-in");
-    return this.request("/connected-devices/device/time-tracking/clock-in", {
+    return this.request("/time-tracking-connected/device/clock-in", {
       method: "POST", credential: this.deviceCredential, body: { operationId: crypto.randomUUID() }
     });
   }
 
   async clockOut(): Promise<unknown> {
     this.requireCapability("time-tracking.clock-out");
-    return this.request("/connected-devices/device/time-tracking/clock-out", {
+    return this.request("/time-tracking-connected/device/clock-out", {
       method: "POST", credential: this.deviceCredential, body: { operationId: crypto.randomUUID() }
     });
   }
 
   async readTimeRecords(): Promise<unknown> {
     this.requireCapability("time-tracking.records.read");
-    return this.request("/connected-devices/device/time-tracking/sessions", { credential: this.deviceCredential });
+    return this.request("/time-tracking-connected/device/sessions", { credential: this.deviceCredential });
   }
 
   async unlink(): Promise<void> {
