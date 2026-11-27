@@ -15,13 +15,15 @@ Aplicación Android compañera de Bee Core para emparejar dispositivos físicos 
 2. La app intercambia el token de un solo uso mediante `POST /connected-devices/pair`.
 3. Conserva temporalmente la credencial devuelta y consulta `GET /connected-devices/pairing-status` cada cuatro segundos.
 4. Cuando la empresa aprueba el dispositivo, la app obtiene `GET /connected-devices/device/capabilities`.
-5. Solo presenta acciones incluidas en el catálogo concedido al dispositivo. El backend vuelve a comprobar cada grant en cada operación.
+5. Muestra el estado **Emparejado** y los permisos concedidos como badges informativos. Android no modifica grants ni presenta acciones funcionales en esta fase.
 
 El emparejamiento no depende de extensiones. Un dispositivo puede quedar emparejado con cero capacidades y recibir nuevas autorizaciones más adelante.
 
-## Capacidades de Control Horario
+## Permisos visibles
 
-La app reconoce estas capacidades dinámicas cuando la extensión **Time Tracking Connected** está instalada, habilitada y concedida al dispositivo:
+Cuando la empresa aprueba el dispositivo, la app consulta el catálogo autorizado y muestra como badges las capacidades devueltas por Bee Core. Si todavía no hay ninguna, mantiene el estado **Emparejado** y muestra que no existen permisos concedidos. La gestión de permisos se realiza desde Bee-Core; Android solo los consulta y presenta.
+
+La app reconoce, entre otras, estas capacidades cuando la extensión **Time Tracking Connected** está instalada, habilitada y concedida al dispositivo:
 
 | Capability ID | Acción | Endpoint |
 |---|---|---|
@@ -29,7 +31,7 @@ La app reconoce estas capacidades dinámicas cuando la extensión **Time Trackin
 | `time-tracking.clock-out` | Registrar salida | `POST /time-tracking-connected/device/clock-out` |
 | `time-tracking.records.read` | Consultar registros propios | `GET /time-tracking-connected/device/sessions` |
 
-Las operaciones de escritura envían un `operationId` único para conservar la idempotencia del backend. La aplicación no muestra acciones por el mero hecho de conocer sus IDs: las presenta solo si están en el catálogo concedido que devuelve Bee Core.
+En esta fase estas capacidades se muestran únicamente como badges informativos. Las acciones de Control Horario desde Android quedan fuera de la interfaz hasta completar y validar el flujo de autorización.
 
 ## Desarrollo
 
@@ -56,7 +58,7 @@ La URL de API inicial es `https://beecore.beeprojects.net/api`; puede cambiarse 
 - [x] Escaneo QR con ML Kit.
 - [x] Intercambio del QR y consulta de aprobación.
 - [x] Descubrimiento dinámico de capacidades concedidas.
-- [x] Acciones de Control Horario para entrada, salida y consulta de registros.
+- [ ] Acciones de Control Horario desde Android (pospuestas; primero se valida emparejamiento y visualización de permisos).
 - [x] Desvinculación del dispositivo.
 - [ ] Almacenamiento seguro de credenciales mediante Android Keystore.
 - [x] Refresco del catálogo al volver la app a primer plano y acción manual de actualización.
