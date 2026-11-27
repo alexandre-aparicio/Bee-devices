@@ -48,6 +48,8 @@ Para generar y abrir el proyecto Android:
 npx cap add android
 npm run cap:sync
 npm run android
+
+`npm run cap:sync` también ejecuta una preparación defensiva que comprueba que exista `MainActivity` en el paquete Android configurado y la recupera si falta. No sustituye `npx cap add android`: la plataforma nativa debe inicializarse primero.
 ```
 
 La URL de API inicial es `https://beecore.beeprojects.net/api`; puede cambiarse desde la pantalla de la aplicación para desarrollo.
