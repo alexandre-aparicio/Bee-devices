@@ -37,7 +37,11 @@ export class ConnectedDevicesClient {
       ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) })
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error ?? "Bee Core request failed (" + response.status + ").");
+    if (!response.ok) {
+      const error = new Error(result.error ?? "Bee Core request failed (" + response.status + ").") as Error & { status?: number };
+      error.status = response.status;
+      throw error;
+    }
     return result as T;
   }
 
@@ -75,9 +79,14 @@ export class ConnectedDevicesClient {
 
   async refreshCapabilities(): Promise<DeviceCapability[]> {
     if (!this.deviceCredential) return [];
-    const result = await this.request<{ capabilities: DeviceCapability[] }>("/connected-devices/device/capabilities", { credential: this.deviceCredential });
-    this.capabilities = result.capabilities ?? [];
-    return this.capabilities;
+    try {
+      const result = await this.request<{ capabilities: DeviceCapability[] }>("/connected-devices/device/capabilities", { credential: this.deviceCredential });
+      this.capabilities = result.capabilities ?? [];
+      return this.capabilities;
+    } catch (error) {
+      if ((error as { status?: number })?.status === 401 || (error as { status?: number })?.status === 403) this.clear();
+      throw error;
+    }
   }
 
   hasCapability(id: string): boolean {
