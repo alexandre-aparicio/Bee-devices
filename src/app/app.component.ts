@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component } from "@angular/core";
+import { Component, OnDestroy, OnInit } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { IonicModule } from "@ionic/angular";
 import { BarcodeFormat, BarcodeScanner } from "@capacitor-mlkit/barcode-scanning";
@@ -85,16 +85,20 @@ export class AppComponent implements OnInit, OnDestroy {
   error = "";
   message = "";
   private appStateListener?: PluginListenerHandle;
+  private destroyed = false;
 
   constructor(readonly client: ConnectedDevicesClient) {}
 
   ngOnInit(): void {
-    this.appStateListener = App.addListener("appStateChange", ({ isActive }) => {
+    void App.addListener("appStateChange", ({ isActive }) => {
       if (isActive && this.client.status === "active") void this.refresh();
+    }).then(listener => {
+      if (this.destroyed) void listener.remove();
+      else this.appStateListener = listener;
     });
   }
 
-  ngOnDestroy(): void { void this.appStateListener?.remove(); }
+  ngOnDestroy(): void { this.destroyed = true; void this.appStateListener?.remove(); }
 
   setServer(): void { this.client.setBaseUrl(this.apiUrl); }
 
