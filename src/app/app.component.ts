@@ -16,7 +16,7 @@ import { ConnectedDevicesClient } from "./connected-devices.client";
       <ion-header>
         <ion-toolbar color="primary">
           <ion-title>Bee Devices</ion-title>
-          <ion-buttons slot="end"><ion-button (click)="refresh()" [disabled]="busy">Actualizar</ion-button></ion-buttons>
+          <ion-buttons slot="end"><ion-button (click)="refresh()" [disabled]="busy || client.status !== 'active'">Actualizar</ion-button></ion-buttons>
         </ion-toolbar>
       </ion-header>
       <ion-content class="ion-padding">
@@ -40,27 +40,23 @@ import { ConnectedDevicesClient } from "./connected-devices.client";
             </ion-button>
             <p class="muted">El emparejamiento está siempre disponible, aunque no haya extensiones instaladas.</p>
             <ion-chip [color]="client.status === 'active' ? 'success' : client.status === 'pending' ? 'warning' : 'medium'">
-              {{client.status === 'active' ? 'Conectado' : client.status === 'pending' ? 'Esperando aprobación' : 'Sin emparejar'}}
+              {{client.status === 'active' ? 'Emparejado' : client.status === 'pending' ? 'Esperando aprobación' : 'Sin emparejar'}}
             </ion-chip>
           </ion-card-content>
         </ion-card>
 
         <ion-card *ngIf="client.status === 'active'">
           <ion-card-header>
-            <ion-card-title>Funciones disponibles</ion-card-title>
-            <ion-card-subtitle>Solo se muestran capacidades concedidas a este dispositivo</ion-card-subtitle>
+            <ion-card-title>Permisos concedidos</ion-card-title>
+            <ion-card-subtitle>Capacidades autorizadas por la empresa para este dispositivo</ion-card-subtitle>
           </ion-card-header>
           <ion-card-content>
-            <p *ngIf="!client.capabilities.length" class="muted">No hay extensiones o permisos concedidos. El dispositivo sigue emparejado.</p>
-            <ion-list *ngIf="client.capabilities.length">
-              <ion-item *ngFor="let capability of client.capabilities">
-                <ion-label><h2>{{capability.label}}</h2><p>{{capability.description}}</p></ion-label>
-              </ion-item>
-            </ion-list>
-            <div class="actions" *ngIf="client.hasCapability('time-tracking.clock-in') || client.hasCapability('time-tracking.clock-out') || client.hasCapability('time-tracking.records.read')">
-              <ion-button *ngIf="client.hasCapability('time-tracking.clock-in')" expand="block" (click)="run(() => client.clockIn())" [disabled]="busy">Registrar entrada</ion-button>
-              <ion-button *ngIf="client.hasCapability('time-tracking.clock-out')" expand="block" color="secondary" (click)="run(() => client.clockOut())" [disabled]="busy">Registrar salida</ion-button>
-              <ion-button *ngIf="client.hasCapability('time-tracking.records.read')" expand="block" fill="outline" (click)="run(() => client.readTimeRecords())" [disabled]="busy">Consultar registros</ion-button>
+            <p *ngIf="!client.capabilities.length" class="muted">El dispositivo está emparejado, pero todavía no tiene permisos concedidos.</p>
+            <div class="capability-badges" *ngIf="client.capabilities.length">
+              <ion-chip color="success" *ngFor="let capability of client.capabilities">
+                <ion-icon name="checkmark-circle" slot="start"></ion-icon>
+                <ion-label>{{capability.label}}</ion-label>
+              </ion-chip>
             </div>
             <ion-button expand="block" fill="clear" color="danger" (click)="run(() => client.unlink())" [disabled]="busy">Desvincular dispositivo</ion-button>
           </ion-card-content>
@@ -75,7 +71,8 @@ import { ConnectedDevicesClient } from "./connected-devices.client";
     ion-content { --background: #f5f7fb; }
     ion-card { border-radius: 18px; box-shadow: 0 8px 28px rgba(20,30,60,.06); }
     .muted { color: #64748b; font-size: .9rem; }
-    .actions { display: grid; gap: 8px; margin-top: 16px; }
+    .capability-badges { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0 12px; }
+    .capability-badges ion-chip { margin: 0; }
   `]
 })
 export class AppComponent implements OnInit, OnDestroy {
@@ -111,9 +108,11 @@ export class AppComponent implements OnInit, OnDestroy {
       const qr = scan.barcodes[0]?.rawValue;
       if (!qr) throw new Error("No se ha detectado ningún código QR.");
       await this.client.pair(qr, this.deviceName);
-      this.message = "Dispositivo emparejado. Esperando aprobación de la empresa…";
-      await this.client.waitForApproval(status => { this.message = status === "active" ? "Dispositivo aprobado." : "Esperando aprobación…"; });
-      this.message = "Dispositivo autorizado. Cargando capacidades disponibles.";
+      this.message = "Solicitud enviada. Esperando aprobación de la empresa…";
+      await this.client.waitForApproval(status => {
+        this.message = status === "active" ? "Dispositivo aprobado. Consultando permisos…" : "Esperando aprobación…";
+      });
+      this.message = "Dispositivo emparejado. Permisos actualizados.";
     } catch (error) {
       if (this.client.status === "pending") this.client.clear();
       this.error = error instanceof Error ? error.message : "No se pudo completar el emparejamiento.";
@@ -122,13 +121,13 @@ export class AppComponent implements OnInit, OnDestroy {
 
   async refresh(): Promise<void> {
     this.error = "";
-    try { await this.client.refreshCapabilities(); this.message = "Capacidades actualizadas."; }
-    catch (error) { this.error = error instanceof Error ? error.message : "No se pudieron actualizar las capacidades."; }
+    try { await this.client.refreshCapabilities(); this.message = "Permisos actualizados."; }
+    catch (error) { this.error = error instanceof Error ? error.message : "No se pudieron actualizar los permisos."; }
   }
 
   async run(action: () => Promise<unknown>): Promise<void> {
     this.busy = true; this.error = ""; this.message = "";
-    try { const result = await action(); this.message = typeof result === "string" ? result : "Operación completada."; }
+    try { await action(); this.client.clear(); this.message = "Dispositivo desvinculado."; }
     catch (error) { this.error = error instanceof Error ? error.message : "La operación no se pudo completar."; }
     finally { this.busy = false; }
   }
