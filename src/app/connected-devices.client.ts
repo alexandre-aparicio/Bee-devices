@@ -89,46 +89,4 @@ export class ConnectedDevicesClient {
     }
   }
 
-  hasCapability(id: string): boolean {
-    return this.status === "active" && this.capabilities.some(item => item.id === id);
-  }
-
-  async clockIn(): Promise<unknown> {
-    this.requireCapability("time-tracking.clock-in");
-    return this.request("/time-tracking-connected/device/clock-in", {
-      method: "POST", credential: this.deviceCredential, body: { operationId: crypto.randomUUID() }
-    });
-  }
-
-  async clockOut(): Promise<unknown> {
-    this.requireCapability("time-tracking.clock-out");
-    return this.request("/time-tracking-connected/device/clock-out", {
-      method: "POST", credential: this.deviceCredential, body: { operationId: crypto.randomUUID() }
-    });
-  }
-
-  async readTimeRecords(): Promise<unknown> {
-    this.requireCapability("time-tracking.records.read");
-    return this.request("/time-tracking-connected/device/sessions", { credential: this.deviceCredential });
-  }
-
-  async unlink(): Promise<void> {
-    if (!this.deviceCredential || !this.deviceId) return;
-    await this.request("/connected-devices/device/unlink", {
-      method: "POST", pairingSecret: this.deviceCredential, body: { deviceId: this.deviceId }
-    });
-    this.clear();
-  }
-
-  clear(): void {
-    this.pairingSecret = "";
-    this.deviceCredential = "";
-    this.deviceId = "";
-    this.capabilities = [];
-    this.status = "unpaired";
-  }
-
-  private requireCapability(id: string): void {
-    if (!this.hasCapability(id)) throw new Error("Esta acción no está concedida a este dispositivo.");
-  }
 }
