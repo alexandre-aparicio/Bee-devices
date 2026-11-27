@@ -192,7 +192,18 @@ export class AppComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     void App.addListener("appStateChange", ({ isActive }) => {
-      if (isActive && this.client.status === "active") void this.refresh();
+      this.debugScan("APP STATE CHANGE", {
+        isActive,
+        busy: this.busy,
+        status: this.client.status
+      });
+      if (isActive && this.client.status === "active") {
+        this.debugScan("APP RESUME refresh START");
+        void this.refresh().then(
+          () => this.debugScan("APP RESUME refresh RESOLVED"),
+          error => this.debugScan("APP RESUME refresh ERROR", this.safeError(error))
+        );
+      }
     }).then(listener => {
       if (this.destroyed) void listener.remove();
       else this.appStateListener = listener;
@@ -215,42 +226,84 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
+  private safeError(error: unknown): Record<string, unknown> {
+    if (error instanceof Error) {
+      return {
+        name: error.name,
+        message: error.message,
+        status: (error as Error & { status?: number }).status
+      };
+    }
+    return { value: String(error) };
+  }
+
+  private debugScan(stage: string, detail?: unknown): void {
+    console.info("[BEE-PAIR]", new Date().toISOString(), stage, detail ?? "");
+  }
+
   async scanAndPair(): Promise<void> {
     this.busy = true;
     this.error = "";
     this.message = "";
+    this.debugScan("01 scanAndPair ENTER", {
+      baseUrl: this.apiUrl,
+      deviceName: this.deviceName,
+      status: this.client.status
+    });
+
     try {
       this.client.setBaseUrl(this.apiUrl);
+      this.debugScan("02 baseUrl configured", this.client.getBaseUrl());
+
       this.message = "Comprobando e iniciando el lector QR…";
+      this.debugScan("03 isSupported START");
       const support = await BarcodeScanner.isSupported();
+      this.debugScan("04 isSupported RESULT", support);
       if (!support.supported) throw new Error("Este dispositivo no dispone de un escáner compatible.");
 
-      // BarcodeScanner.scan() usa la interfaz de Google Play Services en Android.
-      // El permiso CAMERA no es necesario para esta modalidad; sí lo es que
-      // el módulo dinámico Google Barcode Scanner esté instalado.
+      this.debugScan("05 moduleAvailable START");
       const module = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
+      this.debugScan("06 moduleAvailable RESULT", module);
       if (!module.available) {
         this.message = "El lector QR de Google no está instalado. Estamos solicitando su instalación…";
+        this.debugScan("07 installModule START");
         await BarcodeScanner.installGoogleBarcodeScannerModule();
+        this.debugScan("08 installModule RESOLVED");
         this.message = "Instalación del lector solicitada. Espera a que Google Play Services termine y vuelve a pulsar «Escanear código QR».";
         return;
       }
 
       this.message = "Abriendo la cámara…";
+      this.debugScan("09 scan START");
       const scan = await BarcodeScanner.scan({ formats: [BarcodeFormat.QrCode] });
+      this.debugScan("10 scan RESULT", {
+        barcodeCount: scan.barcodes?.length ?? 0,
+        hasRawValue: !!scan.barcodes?.[0]?.rawValue,
+        rawValueLength: scan.barcodes?.[0]?.rawValue?.length ?? 0
+      });
+
       const qr = scan.barcodes[0]?.rawValue;
       if (!qr) throw new Error("No se ha leído ningún código QR.");
+
+      this.debugScan("11 pair START", { qrLength: qr.length, deviceName: this.deviceName });
       await this.client.pair(qr, this.deviceName);
+      this.debugScan("12 pair RESOLVED", { status: this.client.status });
+
       this.message = "Solicitud enviada. Aprueba el dispositivo desde Bee Core.";
+      this.debugScan("13 waitForApproval START");
       await this.client.waitForApproval(status => {
+        this.debugScan("14 approval STATUS", status);
         this.message = status === "active"
           ? "Dispositivo aprobado. Cargando las capacidades autorizadas…"
           : "Solicitud pendiente. Esperando aprobación de la empresa…";
       });
+      this.debugScan("15 waitForApproval RESOLVED");
       this.message = "Dispositivo vinculado correctamente.";
     } catch (error) {
+      this.debugScan("ERROR scanAndPair", this.safeError(error));
       this.error = error instanceof Error ? error.message : "No se pudo completar el emparejamiento.";
     } finally {
+      this.debugScan("16 FINALLY", { busyBeforeReset: this.busy, status: this.client.status });
       this.busy = false;
     }
   }
