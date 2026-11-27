@@ -3,6 +3,8 @@ import { Component } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { IonicModule } from "@ionic/angular";
 import { BarcodeFormat, BarcodeScanner } from "@capacitor-mlkit/barcode-scanning";
+import { App } from "@capacitor/app";
+import type { PluginListenerHandle } from "@capacitor/core";
 import { ConnectedDevicesClient } from "./connected-devices.client";
 
 @Component({
@@ -76,14 +78,23 @@ import { ConnectedDevicesClient } from "./connected-devices.client";
     .actions { display: grid; gap: 8px; margin-top: 16px; }
   `]
 })
-export class AppComponent {
+export class AppComponent implements OnInit, OnDestroy {
   apiUrl = "https://beecore.beeprojects.net/api";
   deviceName = "Bee Android";
   busy = false;
   error = "";
   message = "";
+  private appStateListener?: PluginListenerHandle;
 
   constructor(readonly client: ConnectedDevicesClient) {}
+
+  ngOnInit(): void {
+    this.appStateListener = App.addListener("appStateChange", ({ isActive }) => {
+      if (isActive && this.client.status === "active") void this.refresh();
+    });
+  }
+
+  ngOnDestroy(): void { void this.appStateListener?.remove(); }
 
   setServer(): void { this.client.setBaseUrl(this.apiUrl); }
 
@@ -100,6 +111,7 @@ export class AppComponent {
       await this.client.waitForApproval(status => { this.message = status === "active" ? "Dispositivo aprobado." : "Esperando aprobación…"; });
       this.message = "Dispositivo autorizado. Cargando capacidades disponibles.";
     } catch (error) {
+      if (this.client.status === "pending") this.client.clear();
       this.error = error instanceof Error ? error.message : "No se pudo completar el emparejamiento.";
     } finally { this.busy = false; }
   }
