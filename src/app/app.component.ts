@@ -58,7 +58,6 @@ import { ConnectedDevicesClient } from "./connected-devices.client";
                 <ion-label>{{capability.label}}</ion-label>
               </ion-chip>
             </div>
-            <ion-button expand="block" fill="clear" color="danger" (click)="run(() => client.unlink())" [disabled]="busy">Desvincular dispositivo</ion-button>
           </ion-card-content>
         </ion-card>
 
@@ -123,12 +122,5 @@ export class AppComponent implements OnInit, OnDestroy {
     this.error = "";
     try { await this.client.refreshCapabilities(); this.message = "Permisos actualizados."; }
     catch (error) { this.error = error instanceof Error ? error.message : "No se pudieron actualizar los permisos."; }
-  }
-
-  async run(action: () => Promise<unknown>): Promise<void> {
-    this.busy = true; this.error = ""; this.message = "";
-    try { await action(); this.client.clear(); this.message = "Dispositivo desvinculado."; }
-    catch (error) { this.error = error instanceof Error ? error.message : "La operación no se pudo completar."; }
-    finally { this.busy = false; }
   }
 }
