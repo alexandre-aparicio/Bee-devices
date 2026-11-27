@@ -1,45 +1,91 @@
 # Bee Devices
 
-Companion Android app for pairing physical devices with Bee Core.
+Aplicación Android compañera de **Bee Core**. Permite vincular un teléfono como dispositivo físico de la empresa y consultar únicamente las capacidades que Bee Core haya concedido.
 
-## Stack
+## Qué hace esta versión
 
-- Ionic + Angular
-- Capacitor for native Android runtime
-- ML Kit barcode scanning for QR pairing
+- Interfaz móvil propia, responsive y sin componentes visuales de Ionic.
+- Escaneo de QR mediante la cámara y ML Kit de Google.
+- Emparejamiento con el endpoint oficial de Connected Devices.
+- Espera de aprobación por parte de la empresa.
+- Consulta del perfil y de los permisos reales del dispositivo.
+- Actualización del estado y desvinculación.
+- Credencial mantenida solo en memoria durante esta primera versión; al cerrar el proceso Android será necesario volver a emparejar. No se guarda ningún secreto en almacenamiento no seguro.
 
-## Bee Core integration
+## Conexión con Bee Core
 
-The first client targets `https://beecore.beeprojects.net/api` and follows the Connected Devices Phase A contract documented in Bee Core.
+Servidor predeterminado:
 
-Pairing flow:
+`https://beecore.beeprojects.net/api`
 
-1. Scan the `bee-device://pair?token=...` QR payload created by Bee Core.
-2. Exchange the one-time token with `POST /connected-devices/pair`.
-3. Keep the returned device credential in memory while the device is pending.
-4. Poll `GET /connected-devices/pairing-status` using `x-device-pairing-secret`.
-5. Once approved, authenticate device operations with `Authorization: Bearer <credential>`.
+La URL se puede cambiar en Ajustes para entornos de desarrollo. La aplicación usa estas rutas existentes:
 
-The initial implementation deliberately does not persist the device credential. Secure Android Keystore-backed persistence will be added before production use.
+| Método | Ruta | Uso |
+|---|---|---|
+| POST | `/connected-devices/pair` | Intercambia el token QR de un solo uso y recibe la credencial pendiente |
+| GET | `/connected-devices/pairing-status` | Comprueba la aprobación con `x-device-pairing-secret` |
+| GET | `/connected-devices/device/me` | Obtiene el dispositivo y sus `grantedCapabilities` |
+| POST | `/connected-devices/device/heartbeat` | Actualiza la última conexión |
+| POST | `/connected-devices/device/unlink` | Desvincula el dispositivo y revoca su credencial |
 
-## Development
+El QR debe tener el formato `bee-device://pair?token=...`. La aprobación se realiza en Bee Core; escanear el QR no concede permisos. La aplicación no solicita, modifica ni amplía capacidades. No llama a rutas de capacidades que no formen parte del contrato actual.
 
-Requirements: Node.js LTS, npm, Android Studio and Android SDK.
+## Requisitos
 
-```bash
+- Node.js 22 LTS
+- npm
+- Android Studio y Android SDK
+- Un dispositivo Android con depuración USB para instalar desde Android Studio
+
+## Instalación desde un clon limpio
+
+En PowerShell, desde la carpeta del repositorio:
+
+```powershell
 npm install
-npm run start
-```
-
-To add the Android platform after installing dependencies:
-
-```bash
-npx cap add android
 npm run build
-npx cap sync android
-npx cap open android
+npm run android:add
+npm run cap:sync
+npm run android
 ```
 
-## Status
+Después, en Android Studio, espera a Gradle Sync y pulsa **Run**.
 
-Initial application scaffold. Pairing API contract is aligned with the current Bee Core implementation. Native QR scanning and end-to-end pairing are the first MVP milestone.
+Si ya existe la carpeta `android`, no ejecutes `android:add` otra vez. Usa:
+
+```powershell
+npm install
+npm run cap:sync
+npm run android
+```
+
+Para regenerar los recursos web y sincronizarlos con Android:
+
+```powershell
+npm run cap:sync
+```
+
+La carpeta nativa `android/` la genera Capacitor en cada entorno y no se versiona. El script de preparación comprueba que exista `MainActivity.java` antes de sincronizar.
+
+## Desarrollo web
+
+```powershell
+npm install
+npm start
+```
+
+El escáner de cámara requiere Android nativo; la vista web permite revisar la interfaz, pero no sustituye la prueba en un teléfono.
+
+## Arquitectura
+
+- Angular standalone para estado y lógica de aplicación.
+- CSS global propio, sin Ionic UI ni estilos remotos.
+- Capacitor 7 para Android.
+- ML Kit Barcode Scanning para QR.
+- Cliente HTTP aislado en `src/app/connected-devices.client.ts`.
+
+## Alcance y seguridad
+
+Bee Devices es un cliente de dispositivo, no un usuario ni una vía para saltarse permisos. Bee Core sigue siendo la autoridad para tenant, membresía, estado del dispositivo y concesión/revocación de capacidades. El cliente falla cerrado ante credenciales rechazadas. Las operaciones de negocio (TPV, inventario, control horario u otras) no se implementan en esta versión.
+
+La credencial de dispositivo solo vive en memoria en esta entrega. El almacenamiento persistente seguro con Android Keystore se incorporará como una fase separada; no se sustituye por almacenamiento local en texto claro.
