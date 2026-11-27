@@ -119,9 +119,21 @@ export class ConnectedDevicesClient {
     const deadline = Date.now() + 15 * 60_000;
 
     while (this.status === "pending" && Date.now() < deadline) {
-      const result = await this.request<PairStatus>("/connected-devices/pairing-status", {
-        pairingSecret: this.credential
-      });
+      let result: PairStatus;
+      try {
+        result = await this.request<PairStatus>("/connected-devices/pairing-status", {
+          pairingSecret: this.credential
+        });
+      } catch (error) {
+        const status = (error as { status?: number })?.status;
+        if (status === 401 || status === 403 || status === 404) {
+          this.clear();
+          throw error;
+        }
+        onStatus("pending");
+        await new Promise(resolve => setTimeout(resolve, 4000));
+        continue;
+      }
 
       if (result.status === "active") {
         this.status = "active";
