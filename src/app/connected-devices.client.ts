@@ -1,6 +1,7 @@
 import { Injectable } from "@angular/core";
 
 export type DeviceCapability = {
+  contractVersion: 1;
   id: string;
   label: string;
   description: string;
