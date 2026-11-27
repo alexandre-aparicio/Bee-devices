@@ -26,10 +26,18 @@ export class ConnectedDevicesClient {
     this.baseUrl = value.trim().replace(/\/+$/, "");
   }
 
+  clear(): void {
+    this.pairingSecret = "";
+    this.deviceCredential = "";
+    this.deviceId = "";
+    this.capabilities = [];
+    this.status = "unpaired";
+  }
+
   private async request<T>(path: string, options: { method?: string; body?: unknown; credential?: string; pairingSecret?: string } = {}): Promise<T> {
     const headers: Record<string, string> = {};
     if (options.body !== undefined) headers["Content-Type"] = "application/json";
-    if (options.credential) headers.Authorization = "Bearer " + options.credential;
+    if (options.credential) headers["Authorization"] = "Bearer " + options.credential;
     if (options.pairingSecret) headers["x-device-pairing-secret"] = options.pairingSecret;
     const response = await fetch(this.baseUrl + path, {
       method: options.method ?? "GET",
@@ -88,5 +96,4 @@ export class ConnectedDevicesClient {
       throw error;
     }
   }
-
 }
