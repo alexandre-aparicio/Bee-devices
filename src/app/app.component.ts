@@ -166,7 +166,7 @@ import { ConnectedDevicesClient } from "./connected-devices.client";
   `]
 })
 export class AppComponent implements OnInit, OnDestroy {
-  apiUrl = this.client.getBaseUrl();
+  apiUrl = "";
   deviceName = "Bee Android";
   busy = false;
   error = "";
@@ -175,7 +175,9 @@ export class AppComponent implements OnInit, OnDestroy {
   private appStateListener?: PluginListenerHandle;
   private destroyed = false;
 
-  constructor(readonly client: ConnectedDevicesClient) {}
+  constructor(readonly client: ConnectedDevicesClient) {
+    this.apiUrl = client.getBaseUrl();
+  }
 
   get statusLabel(): string {
     if (this.client.status === "active") return "Conectado";
