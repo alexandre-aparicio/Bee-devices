@@ -5,8 +5,9 @@
   "scripts": {
     "start": "ng serve --host 0.0.0.0",
     "build": "ng build",
-    "cap:sync": "npm run build && npx cap sync android",
-    "android": "npx cap open android"
+    "cap:sync": "npm run build && npm run android:prepare && npx cap sync android",
+    "android": "npx cap open android",
+    "android:prepare": "node scripts/ensure-android-main-activity.mjs"
   },
   "dependencies": {
     "@angular/animations": "22.2.7",
