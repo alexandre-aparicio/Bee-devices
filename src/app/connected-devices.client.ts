@@ -60,30 +60,64 @@ export class ConnectedDevicesClient {
     if (options.credential) headers["Authorization"] = "Bearer " + options.credential;
     if (options.pairingSecret) headers["x-device-pairing-secret"] = options.pairingSecret;
 
+    const method = options.method ?? "GET";
+    const startedAt = Date.now();
+    console.info("[BEE-HTTP]", new Date().toISOString(), "REQUEST START", {
+      method,
+      path,
+      hasBody: options.body !== undefined,
+      hasCredential: !!options.credential,
+      hasPairingSecret: !!options.pairingSecret
+    });
+
     let response: Response;
     try {
       response = await fetch(this.baseUrl + path, {
-        method: options.method ?? "GET",
+        method,
         headers,
         ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) })
       });
-    } catch {
+    } catch (error) {
+      console.error("[BEE-HTTP]", new Date().toISOString(), "NETWORK ERROR", {
+        method, path, elapsedMs: Date.now() - startedAt,
+        error: error instanceof Error ? { name: error.name, message: error.message } : String(error)
+      });
       throw new Error("No se pudo conectar con Bee Core. Comprueba Internet y la dirección del servidor.");
     }
 
-    const payload = await response.json().catch(() => ({} as Record<string, unknown>));
+    console.info("[BEE-HTTP]", new Date().toISOString(), "RESPONSE RECEIVED", {
+      method, path, status: response.status, ok: response.ok,
+      elapsedMs: Date.now() - startedAt
+    });
+
+    const payload = await response.json().catch(error => {
+      console.warn("[BEE-HTTP]", new Date().toISOString(), "RESPONSE JSON PARSE FAILED", {
+        method, path, error: error instanceof Error ? error.message : String(error)
+      });
+      return {} as Record<string, unknown>;
+    });
     if (!response.ok) {
       const message = typeof payload.error === "string"
         ? payload.error
         : "Bee Core respondió con el código " + response.status + ".";
+      console.error("[BEE-HTTP]", new Date().toISOString(), "HTTP ERROR", {
+        method, path, status: response.status, message
+      });
       const error = new Error(message) as Error & { status?: number };
       error.status = response.status;
       throw error;
     }
+    console.info("[BEE-HTTP]", new Date().toISOString(), "REQUEST RESOLVED", {
+      method, path, elapsedMs: Date.now() - startedAt
+    });
     return payload as T;
   }
 
   async pair(qrPayload: string, deviceName: string): Promise<void> {
+    console.info("[BEE-PAIR]", new Date().toISOString(), "CLIENT pair ENTER", {
+      qrLength: qrPayload.length,
+      deviceName
+    });
     let parsed: URL;
     try {
       parsed = new URL(qrPayload);
@@ -96,6 +130,11 @@ export class ConnectedDevicesClient {
     const token = parsed.searchParams.get("token");
     if (!token) throw new Error("El QR no contiene el token de emparejamiento.");
 
+    console.info("[BEE-PAIR]", new Date().toISOString(), "CLIENT QR VALIDATED", {
+      protocol: parsed.protocol,
+      hostname: parsed.hostname,
+      hasToken: !!token
+    });
     const result = await this.request<PairResult>("/connected-devices/pair", {
       method: "POST",
       body: {
@@ -112,9 +151,17 @@ export class ConnectedDevicesClient {
     this.status = "pending";
     this.device = null;
     this.capabilities = [];
+    console.info("[BEE-PAIR]", new Date().toISOString(), "CLIENT pair STATE UPDATED", {
+      deviceId: this.deviceId,
+      status: this.status
+    });
   }
 
   async waitForApproval(onStatus: (status: "pending" | "active") => void): Promise<void> {
+    console.info("[BEE-PAIR]", new Date().toISOString(), "CLIENT waitForApproval ENTER", {
+      hasCredential: !!this.credential,
+      status: this.status
+    });
     if (!this.credential) throw new Error("No existe una solicitud de emparejamiento pendiente.");
     const deadline = Date.now() + 15 * 60_000;
 
