@@ -25,9 +25,9 @@ La app reconoce estas capacidades dinámicas cuando la extensión **Time Trackin
 
 | Capability ID | Acción | Endpoint |
 |---|---|---|
-| `time-tracking.clock-in` | Registrar entrada | `POST /connected-devices/device/time-tracking/clock-in` |
-| `time-tracking.clock-out` | Registrar salida | `POST /connected-devices/device/time-tracking/clock-out` |
-| `time-tracking.records.read` | Consultar registros propios | `GET /connected-devices/device/time-tracking/sessions` |
+| `time-tracking.clock-in` | Registrar entrada | `POST /time-tracking-connected/device/clock-in` |
+| `time-tracking.clock-out` | Registrar salida | `POST /time-tracking-connected/device/clock-out` |
+| `time-tracking.records.read` | Consultar registros propios | `GET /time-tracking-connected/device/sessions` |
 
 Las operaciones de escritura envían un `operationId` único para conservar la idempotencia del backend. La aplicación no muestra acciones por el mero hecho de conocer sus IDs: las presenta solo si están en el catálogo concedido que devuelve Bee Core.
 
