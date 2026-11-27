@@ -221,10 +221,22 @@ export class AppComponent implements OnInit, OnDestroy {
     this.message = "";
     try {
       this.client.setBaseUrl(this.apiUrl);
+      this.message = "Comprobando e iniciando el lector QR…";
       const support = await BarcodeScanner.isSupported();
       if (!support.supported) throw new Error("Este dispositivo no dispone de un escáner compatible.");
-      const permission = await BarcodeScanner.requestPermissions();
-      if (permission.camera !== "granted") throw new Error("Necesitas permitir el acceso a la cámara para leer el QR.");
+
+      // BarcodeScanner.scan() usa la interfaz de Google Play Services en Android.
+      // El permiso CAMERA no es necesario para esta modalidad; sí lo es que
+      // el módulo dinámico Google Barcode Scanner esté instalado.
+      const module = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
+      if (!module.available) {
+        this.message = "El lector QR de Google no está instalado. Estamos solicitando su instalación…";
+        await BarcodeScanner.installGoogleBarcodeScannerModule();
+        this.message = "Instalación del lector solicitada. Espera a que Google Play Services termine y vuelve a pulsar «Escanear código QR».";
+        return;
+      }
+
+      this.message = "Abriendo la cámara…";
       const scan = await BarcodeScanner.scan({ formats: [BarcodeFormat.QrCode] });
       const qr = scan.barcodes[0]?.rawValue;
       if (!qr) throw new Error("No se ha leído ningún código QR.");
