@@ -59,7 +59,7 @@ La URL de API inicial es `https://beecore.beeprojects.net/api`; puede cambiarse 
 - [x] Acciones de Control Horario para entrada, salida y consulta de registros.
 - [x] Desvinculación del dispositivo.
 - [ ] Almacenamiento seguro de credenciales mediante Android Keystore.
-- [ ] Reconexión y refresco automático del catálogo ante cambios de grants/extensiones.
+- [x] Refresco del catálogo al volver la app a primer plano y acción manual de actualización.
 - [ ] Validación de build e integración en dispositivo Android.
 - [ ] Pruebas de seguridad, expiración, revocación y operación offline.
 
