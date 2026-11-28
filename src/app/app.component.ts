@@ -223,9 +223,10 @@ export class AppComponent implements OnInit, OnDestroy {
     try {
       await this.client.waitForApproval(status => {
         this.debugScan("RESTORED APPROVAL STATUS", status);
-        this.message = "Solicitud pendiente de autorización en Bee Core.";
+        this.message = status === "active"
+          ? "Dispositivo emparejado. Permisos autorizados recibidos."
+          : "Solicitud pendiente de autorización en Bee Core.";
       });
-      if (this.client.status === "active") this.message = "Dispositivo emparejado correctamente.";
     } catch (error) {
       this.error = error instanceof Error ? error.message : "No se pudo confirmar la autorización del dispositivo.";
     } finally { this.approvalPolling = false; }
