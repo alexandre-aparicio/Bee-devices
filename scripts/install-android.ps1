@@ -113,7 +113,7 @@ if (-not $Jdk21Home) {
 $env:JAVA_HOME = $Jdk21Home
 $env:Path = "$(Join-Path $Jdk21Home 'bin');$env:Path"
 Write-Host "JDK seleccionado: $Jdk21Home" -ForegroundColor Green
-Write-Host "Java: $((& (Join-Path $Jdk21Home 'bin\java.exe') -version 2>&1 | Out-String).Trim())"
+Write-Host "Java: $SelectedJavaVersion"
 
 if (-not $env:ANDROID_HOME -and -not $env:ANDROID_SDK_ROOT) {
     Write-Warning "ANDROID_HOME/ANDROID_SDK_ROOT no está definido. Capacitor/Gradle puede no encontrar el SDK."
