@@ -47,24 +47,72 @@ if ($LASTEXITCODE -ne 0) { throw "git pull ha fallado. No se han sobrescrito cam
 
 Write-Host ""
 Write-Host "[2/6] Comprobando Java y Android..." -ForegroundColor Yellow
-Assert-Command "java" "Instala JDK 21 y configura JAVA_HOME."
+# Localiza un JDK 21 real; no asume una ruta de instalación concreta.
+# JAVA_HOME puede apuntar a una carpeta inexistente o a otra versión.
+$JavaCandidates = @()
+if ($env:JAVA_HOME) {
+    $JavaCandidates += $env:JAVA_HOME
+}
 
-# Java escribe su versión en stderr. Capturarla mediante cmd.exe evita que
-# Windows PowerShell 5.1 trate esa salida normal como un NativeCommandError.
-$JavaVersionOutput = cmd.exe /d /c "java -version 2>&1"
-if ($LASTEXITCODE -ne 0 -or -not $JavaVersionOutput) {
-    throw "No se pudo ejecutar Java. Comprueba JAVA_HOME y PATH."
-}
-$JavaVersion = ($JavaVersionOutput | Select-Object -First 1).ToString()
-Write-Host "Java: $JavaVersion"
+$SearchRoots = @(
+    "$env:ProgramFiles\Eclipse Adoptium",
+    "$env:ProgramFiles\Java",
+    "$env:ProgramFiles\Microsoft",
+    "$env:ProgramFiles\Android\Android Studio\jbr",
+    "$env:LOCALAPPDATA\Programs\Eclipse Adoptium",
+    "$env:LOCALAPPDATA\Programs\Microsoft"
+) | Where-Object { $_ -and (Test-Path $_) }
 
-if ($JavaVersion -notmatch 'version\s+"(\d+)' -and $JavaVersion -notmatch 'openjdk\s+(\d+)') {
-    throw "No se pudo identificar la versión de Java: $JavaVersion"
+foreach ($Root in $SearchRoots) {
+    if (Test-Path (Join-Path $Root "bin\java.exe")) {
+        $JavaCandidates += $Root
+    }
+    $JavaCandidates += Get-ChildItem -Path $Root -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '(^jdk|temurin|21)' } |
+        ForEach-Object { $_.FullName }
 }
-$JavaMajor = [int]$Matches[1]
-if ($JavaMajor -ne 21) {
-    throw "Bee Devices requiere JDK 21 para compilar Android. Detectado JDK $JavaMajor. Instala JDK 21 y configura JAVA_HOME/PATH; Java 25 no está soportado por esta configuración."
+
+$JavaCandidates = @($JavaCandidates | Where-Object { $_ } | Select-Object -Unique)
+$Jdk21Home = $null
+$DetectedJava = @()
+
+foreach ($Candidate in $JavaCandidates) {
+    $JavaExe = Join-Path $Candidate "bin\java.exe"
+    if (-not (Test-Path $JavaExe)) { continue }
+
+    # ProcessStartInfo captura stderr sin que Windows PowerShell lo convierta
+    # en NativeCommandError.
+    $Psi = New-Object System.Diagnostics.ProcessStartInfo
+    $Psi.FileName = $JavaExe
+    $Psi.Arguments = "-version"
+    $Psi.UseShellExecute = $false
+    $Psi.RedirectStandardError = $true
+    $Psi.RedirectStandardOutput = $true
+    $Proc = New-Object System.Diagnostics.Process
+    $Proc.StartInfo = $Psi
+    [void]$Proc.Start()
+    $VersionText = $Proc.StandardError.ReadToEnd() + $Proc.StandardOutput.ReadToEnd()
+    $Proc.WaitForExit()
+
+    if ($VersionText -match 'version\s+"(\d+)(?:\.|")') {
+        $Major = [int]$Matches[1]
+        $DetectedJava += "$Candidate (Java $Major)"
+        if ($Major -eq 21 -and -not $Jdk21Home) {
+            $Jdk21Home = $Candidate
+        }
+    }
 }
+
+if (-not $Jdk21Home) {
+    $Found = if ($DetectedJava.Count) { $DetectedJava -join "; " } else { "No se encontró ningún JDK en las rutas habituales." }
+    throw "Se requiere JDK 21. Java detectado: $Found. Instala JDK 21 (por ejemplo, Eclipse Temurin 21 x64), abre una nueva PowerShell y vuelve a ejecutar este script. No cambies JAVA_HOME a una ruta supuesta."
+}
+
+$env:JAVA_HOME = $Jdk21Home
+$env:Path = "$(Join-Path $Jdk21Home 'bin');$env:Path"
+Write-Host "JDK seleccionado: $Jdk21Home" -ForegroundColor Green
+Write-Host "Java: $((& (Join-Path $Jdk21Home 'bin\java.exe') -version 2>&1 | Out-String).Trim())"
+
 if (-not $env:ANDROID_HOME -and -not $env:ANDROID_SDK_ROOT) {
     Write-Warning "ANDROID_HOME/ANDROID_SDK_ROOT no está definido. Capacitor/Gradle puede no encontrar el SDK."
 }
