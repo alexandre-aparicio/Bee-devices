@@ -38,6 +38,7 @@ jobs:
         shell: bash
         run: |
           set -eu
+          set +o pipefail
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort | tail -n 1)"
           if [[ -z "$SDKMANAGER" ]]; then
             echo "Android SDK command-line tools were not found on the runner."
