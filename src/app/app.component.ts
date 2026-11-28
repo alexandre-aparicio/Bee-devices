@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, OnDestroy, OnInit } from "@angular/core";
+import { ChangeDetectorRef, Component, NgZone, OnDestroy, OnInit } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { BarcodeFormat, BarcodeScanner } from "@capacitor-mlkit/barcode-scanning";
 import { App } from "@capacitor/app";
@@ -172,8 +172,20 @@ export class AppComponent implements OnInit, OnDestroy {
   private destroyed = false;
   private approvalPolling = false;
 
-  constructor(readonly client: ConnectedDevicesClient) {
+  constructor(
+    readonly client: ConnectedDevicesClient,
+    private readonly zone: NgZone,
+    private readonly changeDetector: ChangeDetectorRef
+  ) {
     this.apiUrl = client.getBaseUrl();
+  }
+
+  private updateView(update: () => void): void {
+    if (this.destroyed) return;
+    this.zone.run(() => {
+      update();
+      this.changeDetector.detectChanges();
+    });
   }
 
   get statusLabel(): string {
@@ -205,15 +217,19 @@ export class AppComponent implements OnInit, OnDestroy {
   private async restoreDeviceSession(): Promise<void> {
     try {
       const status = await this.client.restoreSession();
-      this.debugScan("SESSION RESTORED", { status });
+      this.updateView(() => this.debugScan("SESSION RESTORED", { status }));
       if (status === "pending" && !this.busy) void this.resumeApprovalPolling();
       if (status === "active") {
         await this.client.heartbeat();
-        this.message = "Dispositivo emparejado. Estado y permisos recuperados desde Bee Core.";
+        this.updateView(() => {
+          this.message = "Dispositivo emparejado. Estado y permisos recuperados desde Bee Core.";
+        });
       }
     } catch (error) {
-      this.debugScan("SESSION RESTORE ERROR", this.safeError(error));
-      this.error = error instanceof Error ? error.message : "No se pudo recuperar la sesión del dispositivo.";
+      this.updateView(() => {
+        this.debugScan("SESSION RESTORE ERROR", this.safeError(error));
+        this.error = error instanceof Error ? error.message : "No se pudo recuperar la sesión del dispositivo.";
+      });
     }
   }
 
@@ -222,14 +238,22 @@ export class AppComponent implements OnInit, OnDestroy {
     this.approvalPolling = true;
     try {
       await this.client.waitForApproval(status => {
-        this.debugScan("RESTORED APPROVAL STATUS", status);
-        this.message = status === "active"
-          ? "Dispositivo emparejado. Permisos autorizados recibidos."
-          : "Solicitud pendiente de autorización en Bee Core.";
+        this.updateView(() => {
+          this.debugScan("RESTORED APPROVAL STATUS", status);
+          this.message = status === "active"
+            ? "Dispositivo emparejado. Permisos autorizados recibidos."
+            : "Solicitud pendiente de autorización en Bee Core.";
+        });
       });
+      this.updateView(() => undefined);
     } catch (error) {
-      this.error = error instanceof Error ? error.message : "No se pudo confirmar la autorización del dispositivo.";
-    } finally { this.approvalPolling = false; }
+      this.updateView(() => {
+        this.error = error instanceof Error ? error.message : "No se pudo confirmar la autorización del dispositivo.";
+      });
+    } finally {
+      this.approvalPolling = false;
+      this.updateView(() => undefined);
+    }
   }
 
   ngOnDestroy(): void {
@@ -315,11 +339,15 @@ export class AppComponent implements OnInit, OnDestroy {
       this.debugScan("13 approval polling DETACHED", { status: this.client.status });
       void this.resumeApprovalPolling();
     } catch (error) {
-      this.debugScan("ERROR scanAndPair", this.safeError(error));
-      this.error = error instanceof Error ? error.message : "No se pudo completar el emparejamiento.";
+      this.updateView(() => {
+        this.debugScan("ERROR scanAndPair", this.safeError(error));
+        this.error = error instanceof Error ? error.message : "No se pudo completar el emparejamiento.";
+      });
     } finally {
-      this.debugScan("16 FINALLY", { busyBeforeReset: this.busy, status: this.client.status });
-      this.busy = false;
+      this.updateView(() => {
+        this.debugScan("16 FINALLY", { busyBeforeReset: this.busy, status: this.client.status });
+        this.busy = false;
+      });
     }
   }
 
@@ -331,9 +359,11 @@ export class AppComponent implements OnInit, OnDestroy {
       await this.client.heartbeat();
       this.message = "Estado y permisos actualizados desde Bee Core.";
     } catch (error) {
-      this.error = error instanceof Error ? error.message : "No se pudo actualizar el dispositivo.";
+      this.updateView(() => {
+        this.error = error instanceof Error ? error.message : "No se pudo actualizar el dispositivo.";
+      });
     } finally {
-      this.busy = false;
+      this.updateView(() => { this.busy = false; });
     }
   }
 
@@ -345,9 +375,11 @@ export class AppComponent implements OnInit, OnDestroy {
       await this.client.unlink();
       this.message = "Dispositivo desvinculado. La credencial local se ha eliminado.";
     } catch (error) {
-      this.error = error instanceof Error ? error.message : "No se pudo desvincular el dispositivo.";
+      this.updateView(() => {
+        this.error = error instanceof Error ? error.message : "No se pudo desvincular el dispositivo.";
+      });
     } finally {
-      this.busy = false;
+      this.updateView(() => { this.busy = false; });
     }
   }
 
