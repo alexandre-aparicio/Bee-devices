@@ -47,40 +47,31 @@ if ($LASTEXITCODE -ne 0) { throw "git pull ha fallado. No se han sobrescrito cam
 
 Write-Host ""
 Write-Host "[2/6] Comprobando Java y Android..." -ForegroundColor Yellow
-# Localiza un JDK 21 real; no asume una ruta de instalación concreta.
-# JAVA_HOME puede apuntar a una carpeta inexistente o a otra versión.
+# Localiza JDK 21. Prioriza JAVA_HOME si apunta a un JDK válido y,
+# además, inspecciona directamente las carpetas instaladas de Temurin.
 $JavaCandidates = @()
 if ($env:JAVA_HOME) {
     $JavaCandidates += $env:JAVA_HOME
 }
 
-$SearchRoots = @(
-    "$env:ProgramFiles\Eclipse Adoptium",
-    "$env:ProgramFiles\Java",
-    "$env:ProgramFiles\Microsoft",
-    "$env:ProgramFiles\Android\Android Studio\jbr",
-    "$env:LOCALAPPDATA\Programs\Eclipse Adoptium",
-    "$env:LOCALAPPDATA\Programs\Microsoft"
-) | Where-Object { $_ -and (Test-Path $_) }
-
-foreach ($Root in $SearchRoots) {
-    if (Test-Path (Join-Path $Root "bin\java.exe")) {
-        $JavaCandidates += $Root
-    }
-    $JavaCandidates += Get-ChildItem -Path $Root -Directory -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -match '(^jdk|temurin|21)' } |
+$AdoptiumRoot = Join-Path $env:ProgramFiles "Eclipse Adoptium"
+if (Test-Path $AdoptiumRoot) {
+    $JavaCandidates += Get-ChildItem -Path $AdoptiumRoot -Directory -ErrorAction SilentlyContinue |
         ForEach-Object { $_.FullName }
 }
+$JavaCandidates += @(
+    (Join-Path $env:ProgramFiles "Java"),
+    (Join-Path $env:ProgramFiles "Android\Android Studio\jbr"),
+    (Join-Path $env:LOCALAPPDATA "Programs\Eclipse Adoptium")
+) | Where-Object { $_ -and (Test-Path $_) }
 
-$JavaCandidates = @($JavaCandidates | Where-Object { $_ } | Select-Object -Unique)
+$JavaCandidates = @($JavaCandidates | Where-Object { $_ -and (Test-Path (Join-Path $_ "bin\java.exe")) } | Select-Object -Unique)
 $Jdk21Home = $null
 $SelectedJavaVersion = $null
 $DetectedJava = @()
 
 foreach ($Candidate in $JavaCandidates) {
     $JavaExe = Join-Path $Candidate "bin\java.exe"
-    if (-not (Test-Path $JavaExe)) { continue }
-
     # ProcessStartInfo captura stderr sin que Windows PowerShell lo convierta
     # en NativeCommandError.
     $Psi = New-Object System.Diagnostics.ProcessStartInfo
