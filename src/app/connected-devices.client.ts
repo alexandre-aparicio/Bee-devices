@@ -15,7 +15,8 @@ export type DeviceProfile = {
 
 type PairResult = {
   deviceId: string;
-  pairingSecret: string;
+  pairingSecret?: string;
+  deviceCredential?: string;
   status: "pending";
   approvalExpiresAt: string;
   availablePermissions?: ConnectorPermission[];
@@ -155,8 +156,13 @@ export class ConnectedDevicesClient {
       }
     });
 
+    const pairingCredential = result.pairingSecret || result.deviceCredential;
+    if (!result.deviceId || typeof pairingCredential !== "string" || pairingCredential.length < 40) {
+      throw new Error("Bee Core devolvió una respuesta de emparejamiento incompleta. Actualiza el paquete Connected Devices e inténtalo de nuevo.");
+    }
+
     this.deviceId = result.deviceId;
-    this.credential = result.pairingSecret;
+    this.credential = pairingCredential;
     await this.persistSession();
     this.status = "pending";
     this.device = null;
