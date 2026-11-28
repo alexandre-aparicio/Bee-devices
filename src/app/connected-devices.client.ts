@@ -1,4 +1,5 @@
 import { Injectable } from "@angular/core";
+import { Preferences } from "@capacitor/preferences";
 
 export type ConnectorPermission = { pluginId: string; key: string; module: string; resource: string; action: string; label: string };
 
@@ -37,6 +38,7 @@ export class ConnectedDevicesClient {
   private baseUrl = this.defaultBaseUrl;
   private credential = "";
   private deviceId = "";
+  private readonly sessionKey = "bee.connected-devices.session";
 
   status: "unpaired" | "pending" | "active" = "unpaired";
   device: DeviceProfile | null = null;
@@ -155,6 +157,7 @@ export class ConnectedDevicesClient {
 
     this.deviceId = result.deviceId;
     this.credential = result.pairingSecret;
+    await this.persistSession();
     this.status = "pending";
     this.device = null;
     this.capabilities = [];
@@ -193,6 +196,7 @@ export class ConnectedDevicesClient {
 
       if (result.status === "active") {
         this.status = "active";
+        await this.persistSession();
         onStatus("active");
         await this.refreshDevice();
         return;
@@ -230,6 +234,7 @@ export class ConnectedDevicesClient {
         ? result.device.grantedCapabilities
         : [];
       this.status = "active";
+      await this.persistSession();
       return result.device;
     } catch (error) {
       const status = (error as { status?: number })?.status;
@@ -263,6 +268,48 @@ export class ConnectedDevicesClient {
     this.clear();
   }
 
+  async restoreSession(): Promise<"unpaired" | "pending" | "active"> {
+    const stored = await Preferences.get({ key: this.sessionKey });
+    if (!stored.value) return this.status;
+    try {
+      const session = JSON.parse(stored.value) as { credential?: string; deviceId?: string; baseUrl?: string };
+      if (!session.credential || !session.deviceId) throw new Error("Stored device session is incomplete.");
+      if (session.baseUrl) this.setBaseUrl(session.baseUrl);
+      this.credential = session.credential;
+      this.deviceId = session.deviceId;
+      const state = await this.request<PairStatus>("/connected-devices/pairing-status", { pairingSecret: this.credential });
+      this.setPermissions(state.availablePermissions ?? []);
+      if (state.status === "active") {
+        await this.refreshDevice();
+        return this.status;
+      }
+      if (state.status === "pending") {
+        this.status = "pending";
+        return this.status;
+      }
+      await this.clearPersistedSession();
+      this.clear();
+      return this.status;
+    } catch (error) {
+      const status = (error as { status?: number })?.status;
+      if (status === 401 || status === 403 || status === 404) {
+        await this.clearPersistedSession();
+        this.clear();
+        return this.status;
+      }
+      throw error;
+    }
+  }
+
+  private async persistSession(): Promise<void> {
+    if (!this.credential || !this.deviceId) return;
+    await Preferences.set({ key: this.sessionKey, value: JSON.stringify({ credential: this.credential, deviceId: this.deviceId, baseUrl: this.baseUrl }) });
+  }
+
+  private async clearPersistedSession(): Promise<void> {
+    await Preferences.remove({ key: this.sessionKey });
+  }
+
   private setPermissions(permissions: ConnectorPermission[]): void {
     this.permissions = Array.isArray(permissions) ? permissions.filter(item => !!item?.key && !!item?.label) : [];
   }
@@ -272,6 +319,7 @@ export class ConnectedDevicesClient {
   }
 
   clear(): void {
+    void this.clearPersistedSession();
     this.credential = "";
     this.deviceId = "";
     this.device = null;
