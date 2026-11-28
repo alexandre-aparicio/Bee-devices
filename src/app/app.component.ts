@@ -181,6 +181,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   private updateView(update: () => void): void {
+    if (this.destroyed) return;
     this.zone.run(() => {
       update();
       this.changeDetector.detectChanges();
@@ -338,11 +339,15 @@ export class AppComponent implements OnInit, OnDestroy {
       this.debugScan("13 approval polling DETACHED", { status: this.client.status });
       void this.resumeApprovalPolling();
     } catch (error) {
-      this.debugScan("ERROR scanAndPair", this.safeError(error));
-      this.error = error instanceof Error ? error.message : "No se pudo completar el emparejamiento.";
+      this.updateView(() => {
+        this.debugScan("ERROR scanAndPair", this.safeError(error));
+        this.error = error instanceof Error ? error.message : "No se pudo completar el emparejamiento.";
+      });
     } finally {
-      this.debugScan("16 FINALLY", { busyBeforeReset: this.busy, status: this.client.status });
-      this.busy = false;
+      this.updateView(() => {
+        this.debugScan("16 FINALLY", { busyBeforeReset: this.busy, status: this.client.status });
+        this.busy = false;
+      });
     }
   }
 
@@ -354,9 +359,11 @@ export class AppComponent implements OnInit, OnDestroy {
       await this.client.heartbeat();
       this.message = "Estado y permisos actualizados desde Bee Core.";
     } catch (error) {
-      this.error = error instanceof Error ? error.message : "No se pudo actualizar el dispositivo.";
+      this.updateView(() => {
+        this.error = error instanceof Error ? error.message : "No se pudo actualizar el dispositivo.";
+      });
     } finally {
-      this.busy = false;
+      this.updateView(() => { this.busy = false; });
     }
   }
 
@@ -368,9 +375,11 @@ export class AppComponent implements OnInit, OnDestroy {
       await this.client.unlink();
       this.message = "Dispositivo desvinculado. La credencial local se ha eliminado.";
     } catch (error) {
-      this.error = error instanceof Error ? error.message : "No se pudo desvincular el dispositivo.";
+      this.updateView(() => {
+        this.error = error instanceof Error ? error.message : "No se pudo desvincular el dispositivo.";
+      });
     } finally {
-      this.busy = false;
+      this.updateView(() => { this.busy = false; });
     }
   }
 
