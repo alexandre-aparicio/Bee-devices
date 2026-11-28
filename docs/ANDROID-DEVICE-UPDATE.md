@@ -6,7 +6,7 @@ Este procedimiento actualiza el proyecto desde `main`, compila la aplicación An
 
 - Repositorio: [alexandre-aparicio/Bee-devices](https://github.com/alexandre-aparicio/Bee-devices)
 - Rama: `main`
-- Carpeta local del proyecto: `C:\\Users\\toras\\StudioProjects\\Bee-devices\\android\\Bee-devices`
+- Carpeta local del proyecto: `C:/Users/toras/StudioProjects/Bee-devices/android/Bee-devices`
 - Identificador ADB del móvil físico: `5baac27`
 - APK generado: `android/app/build/outputs/apk/debug/app-debug.apk`
 
@@ -29,7 +29,7 @@ $projectPath = 'C:\Users\toras\StudioProjects\Bee-devices\android\Bee-devices'
 # Comprobar que el móvil esperado está conectado y autorizado.
 $adbDevices = adb devices
 if ($LASTEXITCODE -ne 0) { throw 'No se pudo ejecutar ADB. Comprueba Android SDK y PATH.' }
-if (-not ($adbDevices | Select-String -Pattern ("^" + [regex]::Escape($deviceId) + "\\s+device$"))) {
+if (-not ($adbDevices | Select-String -Pattern ("^" + [regex]::Escape($deviceId) + "\s+device$"))) {
     Write-Host $adbDevices
     throw "No se encuentra el móvil $deviceId en estado device. Comprueba el cable USB y acepta la autorización de depuración."
 }
