@@ -30,7 +30,7 @@ The owner confirmed that this flow works against the VPS after installing the up
 - [PR #7](https://github.com/alexandre-aparicio/Bee-devices/pull/7): support for the pairing credential fields returned by the backend.
 - [PR #8](https://github.com/alexandre-aparicio/Bee-devices/pull/8): run pairing approval UI updates inside Angular's `NgZone` and trigger change detection after status updates.
 
-PR #8 was merged as commit `4900e2641951b7d44d90226167bd2a649033e57c`. Its GitHub Actions workflow completed the Angular build, Capacitor Android sync and Android debug APK build successfully.
+PR #8 was merged as commit `4900e2641951b7d44d90226167bd2a649033e57c`. Its [GitHub Actions run](https://github.com/alexandre-aparicio/Bee-devices/actions/runs/46140628453) completed the Angular build, Capacitor Android sync and Android debug APK build successfully.
 
 ## Device update procedure
 
