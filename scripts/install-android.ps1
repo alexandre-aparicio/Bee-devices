@@ -48,8 +48,23 @@ if ($LASTEXITCODE -ne 0) { throw "git pull ha fallado. No se han sobrescrito cam
 Write-Host ""
 Write-Host "[2/6] Comprobando Java y Android..." -ForegroundColor Yellow
 Assert-Command "java" "Instala JDK 21 y configura JAVA_HOME."
-$JavaVersion = (java -version 2>&1 | Select-Object -First 1).ToString()
+
+# Java escribe su versión en stderr. Capturarla mediante cmd.exe evita que
+# Windows PowerShell 5.1 trate esa salida normal como un NativeCommandError.
+$JavaVersionOutput = cmd.exe /d /c "java -version 2>&1"
+if ($LASTEXITCODE -ne 0 -or -not $JavaVersionOutput) {
+    throw "No se pudo ejecutar Java. Comprueba JAVA_HOME y PATH."
+}
+$JavaVersion = ($JavaVersionOutput | Select-Object -First 1).ToString()
 Write-Host "Java: $JavaVersion"
+
+if ($JavaVersion -notmatch 'version\s+"(\d+)' -and $JavaVersion -notmatch 'openjdk\s+(\d+)') {
+    throw "No se pudo identificar la versión de Java: $JavaVersion"
+}
+$JavaMajor = [int]$Matches[1]
+if ($JavaMajor -ne 21) {
+    throw "Bee Devices requiere JDK 21 para compilar Android. Detectado JDK $JavaMajor. Instala JDK 21 y configura JAVA_HOME/PATH; Java 25 no está soportado por esta configuración."
+}
 if (-not $env:ANDROID_HOME -and -not $env:ANDROID_SDK_ROOT) {
     Write-Warning "ANDROID_HOME/ANDROID_SDK_ROOT no está definido. Capacitor/Gradle puede no encontrar el SDK."
 }
