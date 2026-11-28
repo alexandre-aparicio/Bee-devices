@@ -74,6 +74,7 @@ foreach ($Root in $SearchRoots) {
 
 $JavaCandidates = @($JavaCandidates | Where-Object { $_ } | Select-Object -Unique)
 $Jdk21Home = $null
+$SelectedJavaVersion = $null
 $DetectedJava = @()
 
 foreach ($Candidate in $JavaCandidates) {
@@ -99,6 +100,7 @@ foreach ($Candidate in $JavaCandidates) {
         $DetectedJava += "$Candidate (Java $Major)"
         if ($Major -eq 21 -and -not $Jdk21Home) {
             $Jdk21Home = $Candidate
+            $SelectedJavaVersion = ($VersionText -split "`r?`n" | Select-Object -First 1).Trim()
         }
     }
 }
