@@ -106,11 +106,41 @@ $env:Path = "$(Join-Path $Jdk21Home 'bin');$env:Path"
 Write-Host "JDK seleccionado: $Jdk21Home" -ForegroundColor Green
 Write-Host "Java: $SelectedJavaVersion"
 
-if (-not $env:ANDROID_HOME -and -not $env:ANDROID_SDK_ROOT) {
-    Write-Warning "ANDROID_HOME/ANDROID_SDK_ROOT no está definido. Capacitor/Gradle puede no encontrar el SDK."
+# Detecta el Android SDK instalado por Android Studio y configura el entorno
+# para esta ejecución de PowerShell, sin exigir configuración manual previa.
+$SdkCandidates = @()
+if ($env:ANDROID_SDK_ROOT) { $SdkCandidates += $env:ANDROID_SDK_ROOT }
+if ($env:ANDROID_HOME) { $SdkCandidates += $env:ANDROID_HOME }
+$SdkCandidates += @(
+    (Join-Path $env:LOCALAPPDATA "Android\Sdk"),
+    (Join-Path $env:USERPROFILE "AppData\Local\Android\Sdk"),
+    (Join-Path $env:ProgramFiles "Android\Sdk")
+) | Where-Object { $_ }
+
+$AndroidSdk = $null
+foreach ($SdkCandidate in ($SdkCandidates | Select-Object -Unique)) {
+    $AdbCandidate = Join-Path $SdkCandidate "platform-tools\adb.exe"
+    if (Test-Path $AdbCandidate) {
+        $AndroidSdk = $SdkCandidate
+        break
+    }
 }
+
+if (-not $AndroidSdk) {
+    throw "No se encuentra Android SDK Platform-Tools (adb.exe). Abre Android Studio > More Actions > SDK Manager > SDK Tools, marca Android SDK Platform-Tools e instálalo. Comprueba después que exista '$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe' y vuelve a ejecutar el script."
+}
+
+$env:ANDROID_HOME = $AndroidSdk
+$env:ANDROID_SDK_ROOT = $AndroidSdk
+$PlatformTools = Join-Path $AndroidSdk "platform-tools"
+if (($env:Path -split ';') -notcontains $PlatformTools) {
+    $env:Path = "$PlatformTools;$env:Path"
+}
+Write-Host "Android SDK: $AndroidSdk" -ForegroundColor Green
+Write-Host "ADB: $(Join-Path $PlatformTools 'adb.exe')" -ForegroundColor Green
+
 if (-not $BuildOnly) {
-    Assert-Command "adb" "Instala Android SDK Platform-Tools y añade su carpeta platform-tools al PATH."
+    Assert-Command "adb" "No se encontró adb.exe en Android SDK Platform-Tools."
 }
 
 Write-Host ""
