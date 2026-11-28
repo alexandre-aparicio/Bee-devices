@@ -174,6 +174,7 @@ export class AppComponent implements OnInit, OnDestroy {
   showSettings = false;
   private appStateListener?: PluginListenerHandle;
   private destroyed = false;
+  private approvalPolling = false;
 
   constructor(readonly client: ConnectedDevicesClient) {
     this.apiUrl = client.getBaseUrl();
@@ -191,23 +192,47 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    void this.restoreDeviceSession();
     void App.addListener("appStateChange", ({ isActive }) => {
       this.debugScan("APP STATE CHANGE", {
         isActive,
         busy: this.busy,
         status: this.client.status
       });
-      if (isActive && this.client.status === "active") {
-        this.debugScan("APP RESUME refresh START");
-        void this.refresh().then(
-          () => this.debugScan("APP RESUME refresh RESOLVED"),
-          error => this.debugScan("APP RESUME refresh ERROR", this.safeError(error))
-        );
-      }
+      if (isActive) void this.restoreDeviceSession();
     }).then(listener => {
       if (this.destroyed) void listener.remove();
       else this.appStateListener = listener;
     }).catch(() => undefined);
+  }
+
+  private async restoreDeviceSession(): Promise<void> {
+    try {
+      const status = await this.client.restoreSession();
+      this.debugScan("SESSION RESTORED", { status });
+      if (status === "pending") void this.resumeApprovalPolling();
+      if (status === "active") {
+        await this.client.heartbeat();
+        this.message = "Dispositivo emparejado. Estado y permisos recuperados desde Bee Core.";
+      }
+    } catch (error) {
+      this.debugScan("SESSION RESTORE ERROR", this.safeError(error));
+      this.error = error instanceof Error ? error.message : "No se pudo recuperar la sesión del dispositivo.";
+    }
+  }
+
+  private async resumeApprovalPolling(): Promise<void> {
+    if (this.approvalPolling || this.client.status !== "pending") return;
+    this.approvalPolling = true;
+    try {
+      await this.client.waitForApproval(status => {
+        this.debugScan("RESTORED APPROVAL STATUS", status);
+        this.message = status === "active" ? "Dispositivo emparejado. Permisos autorizados recibidos." : "Solicitud pendiente de autorización en Bee Core.";
+      });
+      if (this.client.status === "active") this.message = "Dispositivo emparejado correctamente.";
+    } catch (error) {
+      this.error = error instanceof Error ? error.message : "No se pudo confirmar la autorización del dispositivo.";
+    } finally { this.approvalPolling = false; }
   }
 
   ngOnDestroy(): void {
