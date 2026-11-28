@@ -28,7 +28,7 @@ import { ConnectedDevicesClient } from "./connected-devices.client";
             <div class="eyebrow"><span class="eyebrow-line"></span> COMPANION APP</div>
             <h1>Todo conectado.<br><em>Todo bajo control.</em></h1>
             <p>Vincula este dispositivo con tu espacio de trabajo Bee Core y accede solo a las funciones que tu empresa autorice.</p>
-            <button class="primary-button" type="button" (click)="scanAndPair()" [disabled]="busy || client.status !== 'unpaired'">
+            <button *ngIf="client.status === 'unpaired'" class="primary-button" type="button" (click)="scanAndPair()" [disabled]="busy">
               <span class="button-icon">⌗</span>
               {{ busy ? 'Conectando…' : 'Escanear código QR' }}
               <span class="button-arrow">↗</span>
@@ -98,16 +98,12 @@ import { ConnectedDevicesClient } from "./connected-devices.client";
 
         <section class="panel capabilities-panel" *ngIf="client.status === 'active'">
           <div class="panel-heading">
-            <div><span class="step-label">03 / AUTORIZACIONES</span><h2>Capacidades concedidas</h2></div>
+            <div><span class="step-label">03 / AUTORIZACIONES</span><h2>Permisos autorizados</h2></div>
             <span class="permission-count">{{ client.capabilities.length }} {{ client.capabilities.length === 1 ? 'permiso' : 'permisos' }}</span>
           </div>
           <p class="section-description">Estas son las capacidades que Bee Core ha autorizado expresamente para este dispositivo. No se pueden ampliar desde la aplicación.</p>
           <div class="capability-list" *ngIf="client.capabilities.length; else noCapabilities">
-            <div class="capability-item" *ngFor="let capability of client.capabilities">
-              <span class="capability-check">✓</span>
-              <span class="capability-name">{{ capabilityLabel(capability) }}</span>
-              <code>{{ capability }}</code>
-            </div>
+            <span class="capability-badge" *ngFor="let capability of client.capabilities"><span>✓</span>{{ capabilityLabel(capability) }}</span>
           </div>
           <ng-template #noCapabilities>
             <div class="empty-capabilities"><span>⌑</span><div><strong>Aún no hay permisos asignados</strong><p>El dispositivo está emparejado. Un administrador puede conceder capacidades desde Bee Core.</p></div></div>
@@ -158,7 +154,7 @@ import { ConnectedDevicesClient } from "./connected-devices.client";
     .floating-dot { position:absolute; border-radius:50%; background:#4be0c9; box-shadow:0 0 20px #4be0c955; }.dot-a { width:10px; height:10px; top:64px; right:68px; }.dot-b { width:6px; height:6px; bottom:54px; left:64px; background:#aaa4ff; }.floating-label { position:absolute; right:4px; bottom:47px; background:#fff; color:#3b3e72; border-radius:10px; padding:10px 13px; font-size:10px; font-weight:800; box-shadow:0 9px 25px #10132f44; }.floating-label span { color:#625bf6; margin-right:5px; }
     .workspace-grid { display:grid; grid-template-columns:1fr 1fr; gap:22px; }.panel { background:#fff; border:1px solid #eceef5; border-radius:19px; padding:25px 27px; box-shadow:0 5px 20px #25294b06; }.panel-heading { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:22px; }.step-label { color:#8a8fa8; font-size:9px; }.panel h2 { margin:7px 0 0; font-size:19px; letter-spacing:-.55px; color:#252943; }.panel-icon { width:35px; height:35px; border-radius:11px; background:#f0efff; color:#625bf6; display:grid; place-items:center; font-size:18px; }.field-label { display:block; font-size:11px; font-weight:800; color:#535a75; margin:0 0 8px; }.text-field { width:100%; height:45px; border:1px solid #e4e6f0; border-radius:10px; outline:none; padding:0 13px; color:#252943; background:#fbfbfe; font-size:13px; transition:border .15s,box-shadow .15s; }.text-field:focus { border-color:#7770fa; box-shadow:0 0 0 3px #625bf618; }.text-field::placeholder { color:#a5a9ba; }.field-help { margin-top:7px; color:#9398ad; font-size:10px; line-height:1.5; }.settings-toggle { margin-top:19px; width:100%; border:0; border-top:1px solid #eff0f5; padding:14px 0 8px; display:flex; justify-content:space-between; color:#515772; font-size:11px; font-weight:750; background:none; cursor:pointer; }.settings-toggle span:last-child { color:#625bf6; font-size:17px; }.server-settings { padding-top:10px; }.server-indicator { display:flex; align-items:center; gap:8px; margin-top:15px; color:#7e849d; font-size:10px; }.server-dot { width:6px; height:6px; border-radius:50%; background:#35c9a9; }
     .status-content { display:flex; gap:15px; align-items:center; min-height:116px; }.status-illustration { width:58px; height:58px; flex:0 0 58px; border-radius:17px; display:grid; place-items:center; font-size:27px; }.status-illustration.idle { color:#7770ed; background:#f0efff; }.status-illustration.pending { color:#c58b2a; background:#fff6e6; }.status-illustration.active { color:#1eaa8e; background:#e9fbf6; }.status-content strong { display:block; color:#303550; font-size:13px; }.status-content p { margin:6px 0 0; color:#858ba1; font-size:11px; line-height:1.6; }.status-actions { display:flex; align-items:center; gap:14px; border-top:1px solid #eff0f5; padding-top:15px; }.secondary-button { background:#f0efff; border:0; color:#5c55e9; padding:10px 13px; border-radius:9px; font-size:10px; font-weight:800; cursor:pointer; }.secondary-button:disabled,.text-button:disabled { opacity:.5; cursor:not-allowed; }.text-button { border:0; background:none; font-size:10px; font-weight:800; cursor:pointer; }.danger { color:#d35e70; }
-    .capabilities-panel { margin-top:22px; }.capabilities-panel .panel-heading { margin-bottom:9px; }.permission-count { border-radius:20px; background:#eafaf6; color:#1c9b82; padding:7px 11px; font-size:10px; font-weight:850; }.section-description { color:#8389a0; font-size:11px; line-height:1.65; margin:0 0 17px; }.capability-list { display:grid; grid-template-columns:1fr 1fr; gap:9px; }.capability-item { min-width:0; border:1px solid #edf0f5; background:#fcfcfe; border-radius:11px; padding:12px; display:grid; grid-template-columns:22px 1fr; align-items:center; column-gap:8px; }.capability-check { width:21px; height:21px; border-radius:50%; background:#e4f9f3; color:#1ca889; display:grid; place-items:center; font-size:11px; font-weight:900; grid-row:span 2; }.capability-name { color:#3c425d; font-size:11px; font-weight:800; }.capability-item code { color:#989db0; font-size:9px; margin-top:3px; overflow-wrap:anywhere; }.empty-capabilities { display:flex; align-items:center; gap:14px; padding:18px; border-radius:12px; background:#f8f8fc; }.empty-capabilities>span { width:38px; height:38px; flex:0 0 38px; display:grid; place-items:center; border-radius:12px; color:#7770ed; background:#eeedff; font-size:21px; }.empty-capabilities strong { color:#434963; font-size:11px; }.empty-capabilities p { margin:5px 0 0; color:#8b90a5; font-size:10px; line-height:1.5; }.device-meta { border-top:1px solid #eff0f5; padding-top:13px; margin-top:18px; display:flex; gap:22px; flex-wrap:wrap; color:#8c91a6; font-size:10px; }.device-meta code { color:#656b85; }.device-meta strong { color:#555b75; }
+    .capabilities-panel { margin-top:22px; }.capabilities-panel .panel-heading { margin-bottom:9px; }.permission-count { border-radius:20px; background:#eafaf6; color:#1c9b82; padding:7px 11px; font-size:10px; font-weight:850; }.section-description { color:#8389a0; font-size:11px; line-height:1.65; margin:0 0 17px; }.capability-list { display:flex; flex-wrap:wrap; gap:9px; }.capability-badge { display:inline-flex; align-items:center; gap:7px; border:1px solid #ccefe5; background:#effbf7; color:#237e6d; border-radius:999px; padding:9px 13px; font-size:11px; font-weight:800; }.capability-badge span { width:17px; height:17px; border-radius:50%; display:grid; place-items:center; background:#d6f5e9; color:#169a7e; font-size:10px; }.empty-capabilities { display:flex; align-items:center; gap:14px; padding:18px; border-radius:12px; background:#f8f8fc; }.empty-capabilities>span { width:38px; height:38px; flex:0 0 38px; display:grid; place-items:center; border-radius:12px; color:#7770ed; background:#eeedff; font-size:21px; }.empty-capabilities strong { color:#434963; font-size:11px; }.empty-capabilities p { margin:5px 0 0; color:#8b90a5; font-size:10px; line-height:1.5; }.device-meta { border-top:1px solid #eff0f5; padding-top:13px; margin-top:18px; display:flex; gap:22px; flex-wrap:wrap; color:#8c91a6; font-size:10px; }.device-meta code { color:#656b85; }.device-meta strong { color:#555b75; }
     .feedback { margin-top:17px; padding:13px 15px; border-radius:12px; display:flex; align-items:flex-start; gap:11px; }.feedback>span { width:21px; height:21px; flex:0 0 21px; display:grid; place-items:center; border-radius:50%; font-weight:900; font-size:12px; }.feedback>div { flex:1; }.feedback strong { font-size:11px; }.feedback p { margin:3px 0 0; font-size:11px; line-height:1.5; }.feedback button { border:0; background:none; font-size:19px; cursor:pointer; }.error-feedback { background:#fff0f1; color:#a93e50; }.error-feedback>span { background:#fbdde1; }.success-feedback { background:#eafaf5; color:#218b76; }.success-feedback>span { background:#d2f5e9; }.success-feedback p { flex:1; }
     .footer { margin:29px 0 20px; padding:18px 2px; border-top:1px solid #e7e9f1; display:flex; justify-content:space-between; gap:10px; color:#969bb0; font-size:10px; }.footer-brand { color:#626984; letter-spacing:1.5px; font-size:9px; font-weight:900; }.footer-bee { color:#625bf6; font-size:15px; margin-right:5px; }.footer b { color:#7b8199; font-weight:700; }
     @media (max-width:760px) { .topbar { height:68px; padding:0 20px; }.content { width:calc(100% - 28px); }.welcome { margin:17px 0 15px; min-height:0; padding:30px 24px 32px; border-radius:19px; }.welcome-copy { width:100%; }.welcome-copy>p { max-width:95%; font-size:12px; }.hero-art { opacity:.18; right:-142px; top:18px; transform:scale(.88); transform-origin:top right; }.welcome h1 { font-size:37px; }.secure-note { font-size:9px; }.workspace-grid { grid-template-columns:1fr; gap:13px; }.panel { padding:21px 20px; }.panel h2 { font-size:17px; }.capabilities-panel { margin-top:14px; }.capability-list { grid-template-columns:1fr; }.footer { margin-top:22px; flex-direction:column; }.connection-state { padding:8px 10px; font-size:10px; } }
@@ -174,13 +170,14 @@ export class AppComponent implements OnInit, OnDestroy {
   showSettings = false;
   private appStateListener?: PluginListenerHandle;
   private destroyed = false;
+  private approvalPolling = false;
 
   constructor(readonly client: ConnectedDevicesClient) {
     this.apiUrl = client.getBaseUrl();
   }
 
   get statusLabel(): string {
-    if (this.client.status === "active") return "Conectado";
+    if (this.client.status === "active") return "EMPAREJADO";
     if (this.client.status === "pending") return "Pendiente";
     return "Sin vincular";
   }
@@ -191,23 +188,48 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    void this.restoreDeviceSession();
     void App.addListener("appStateChange", ({ isActive }) => {
       this.debugScan("APP STATE CHANGE", {
         isActive,
         busy: this.busy,
         status: this.client.status
       });
-      if (isActive && this.client.status === "active") {
-        this.debugScan("APP RESUME refresh START");
-        void this.refresh().then(
-          () => this.debugScan("APP RESUME refresh RESOLVED"),
-          error => this.debugScan("APP RESUME refresh ERROR", this.safeError(error))
-        );
-      }
+      if (isActive) void this.restoreDeviceSession();
     }).then(listener => {
       if (this.destroyed) void listener.remove();
       else this.appStateListener = listener;
     }).catch(() => undefined);
+  }
+
+  private async restoreDeviceSession(): Promise<void> {
+    try {
+      const status = await this.client.restoreSession();
+      this.debugScan("SESSION RESTORED", { status });
+      if (status === "pending" && !this.busy) void this.resumeApprovalPolling();
+      if (status === "active") {
+        await this.client.heartbeat();
+        this.message = "Dispositivo emparejado. Estado y permisos recuperados desde Bee Core.";
+      }
+    } catch (error) {
+      this.debugScan("SESSION RESTORE ERROR", this.safeError(error));
+      this.error = error instanceof Error ? error.message : "No se pudo recuperar la sesión del dispositivo.";
+    }
+  }
+
+  private async resumeApprovalPolling(): Promise<void> {
+    if (this.approvalPolling || this.client.status !== "pending") return;
+    this.approvalPolling = true;
+    try {
+      await this.client.waitForApproval(status => {
+        this.debugScan("RESTORED APPROVAL STATUS", status);
+        this.message = status === "active"
+          ? "Dispositivo emparejado. Permisos autorizados recibidos."
+          : "Solicitud pendiente de autorización en Bee Core.";
+      });
+    } catch (error) {
+      this.error = error instanceof Error ? error.message : "No se pudo confirmar la autorización del dispositivo.";
+    } finally { this.approvalPolling = false; }
   }
 
   ngOnDestroy(): void {
@@ -289,16 +311,9 @@ export class AppComponent implements OnInit, OnDestroy {
       await this.client.pair(qr, this.deviceName);
       this.debugScan("12 pair RESOLVED", { status: this.client.status });
 
-      this.message = "Solicitud enviada. Aprueba el dispositivo desde Bee Core.";
-      this.debugScan("13 waitForApproval START");
-      await this.client.waitForApproval(status => {
-        this.debugScan("14 approval STATUS", status);
-        this.message = status === "active"
-          ? "Dispositivo aprobado. Cargando las capacidades autorizadas…"
-          : "Solicitud pendiente. Esperando aprobación de la empresa…";
-      });
-      this.debugScan("15 waitForApproval RESOLVED");
-      this.message = "Dispositivo vinculado correctamente.";
+      this.message = "Solicitud enviada. Confirma la autorización desde Bee Core.";
+      this.debugScan("13 approval polling DETACHED", { status: this.client.status });
+      void this.resumeApprovalPolling();
     } catch (error) {
       this.debugScan("ERROR scanAndPair", this.safeError(error));
       this.error = error instanceof Error ? error.message : "No se pudo completar el emparejamiento.";
@@ -336,19 +351,5 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
-  capabilityLabel(id: string): string {
-    const labels: Record<string, string> = {
-      "device.status.write": "Estado del dispositivo",
-      "scanner.use": "Escáner de códigos",
-      "camera.capture": "Captura de cámara",
-      "catalog.read": "Consulta de catálogo",
-      "inventory.read": "Consulta de inventario",
-      "inventory.write": "Gestión de inventario",
-      "pos.session.read": "Consulta de sesiones TPV",
-      "pos.order.write": "Gestión de pedidos TPV",
-      "location.read": "Acceso a ubicación",
-      "notifications.receive": "Recepción de notificaciones"
-    };
-    return labels[id] ?? id;
-  }
+  capabilityLabel(id: string): string { return this.client.permissionLabel(id); }
 }
