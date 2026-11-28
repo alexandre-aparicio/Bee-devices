@@ -28,7 +28,7 @@ import { ConnectedDevicesClient } from "./connected-devices.client";
             <div class="eyebrow"><span class="eyebrow-line"></span> COMPANION APP</div>
             <h1>Todo conectado.<br><em>Todo bajo control.</em></h1>
             <p>Vincula este dispositivo con tu espacio de trabajo Bee Core y accede solo a las funciones que tu empresa autorice.</p>
-            <button class="primary-button" type="button" (click)="scanAndPair()" [disabled]="busy || client.status !== 'unpaired'">
+            <button *ngIf="client.status === 'unpaired'" class="primary-button" type="button" (click)="scanAndPair()" [disabled]="busy">
               <span class="button-icon">⌗</span>
               {{ busy ? 'Conectando…' : 'Escanear código QR' }}
               <span class="button-arrow">↗</span>
@@ -310,16 +310,9 @@ export class AppComponent implements OnInit, OnDestroy {
       await this.client.pair(qr, this.deviceName);
       this.debugScan("12 pair RESOLVED", { status: this.client.status });
 
-      this.message = "Solicitud enviada. Aprueba el dispositivo desde Bee Core.";
-      this.debugScan("13 waitForApproval START");
-      await this.client.waitForApproval(status => {
-        this.debugScan("14 approval STATUS", status);
-        this.message = status === "active"
-          ? "Dispositivo aprobado. Cargando las capacidades autorizadas…"
-          : "Solicitud pendiente. Esperando aprobación de la empresa…";
-      });
-      this.debugScan("15 waitForApproval RESOLVED");
-      this.message = "Dispositivo vinculado correctamente.";
+      this.message = "Solicitud enviada. Confirma la autorización desde Bee Core.";
+      this.debugScan("13 approval polling DETACHED", { status: this.client.status });
+      void this.resumeApprovalPolling();
     } catch (error) {
       this.debugScan("ERROR scanAndPair", this.safeError(error));
       this.error = error instanceof Error ? error.message : "No se pudo completar el emparejamiento.";
