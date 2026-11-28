@@ -336,19 +336,5 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
-  capabilityLabel(id: string): string {
-    const labels: Record<string, string> = {
-      "device.status.write": "Estado del dispositivo",
-      "scanner.use": "Escáner de códigos",
-      "camera.capture": "Captura de cámara",
-      "catalog.read": "Consulta de catálogo",
-      "inventory.read": "Consulta de inventario",
-      "inventory.write": "Gestión de inventario",
-      "pos.session.read": "Consulta de sesiones TPV",
-      "pos.order.write": "Gestión de pedidos TPV",
-      "location.read": "Acceso a ubicación",
-      "notifications.receive": "Recepción de notificaciones"
-    };
-    return labels[id] ?? id;
-  }
+  capabilityLabel(id: string): string { return this.client.permissionLabel(id); }
 }

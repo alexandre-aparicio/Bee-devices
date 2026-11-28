@@ -23,12 +23,12 @@ La URL se puede cambiar en Ajustes para entornos de desarrollo. La aplicación u
 | Método | Ruta | Uso |
 |---|---|---|
 | POST | `/connected-devices/pair` | Intercambia el token QR de un solo uso y recibe la credencial pendiente |
-| GET | `/connected-devices/pairing-status` | Comprueba la aprobación con `x-device-pairing-secret` |
-| GET | `/connected-devices/device/me` | Obtiene el dispositivo y sus `grantedCapabilities` |
+| GET | `/connected-devices/pairing-status` | Comprueba la aprobación y recibe las declaraciones de permisos de los conectores instalados con `x-device-pairing-secret` |
+| GET | `/connected-devices/device/me` | Obtiene el dispositivo, sus `grantedCapabilities` y las etiquetas dinámicas `availablePermissions` |
 | POST | `/connected-devices/device/heartbeat` | Actualiza la última conexión |
 | POST | `/connected-devices/device/unlink` | Desvincula el dispositivo y revoca su credencial |
 
-El QR debe tener el formato `bee-device://pair?token=...`. La aprobación se realiza en Bee Core; escanear el QR no concede permisos. La aplicación no solicita, modifica ni amplía capacidades. No llama a rutas de capacidades que no formen parte del contrato actual.
+El QR debe tener el formato `bee-device://pair?token=...`. La aprobación se realiza en Bee Core; escanear el QR no concede permisos. La aplicación no mantiene un catálogo local de permisos: las claves y etiquetas se reciben en `availablePermissions` desde los manifiestos de los conectores instalados y habilitados. La aplicación no solicita, modifica ni amplía capacidades.
 
 ## Requisitos
 

@@ -1,5 +1,7 @@
 import { Injectable } from "@angular/core";
 
+export type ConnectorPermission = { pluginId: string; key: string; module: string; resource: string; action: string; label: string };
+
 export type DeviceProfile = {
   id: string;
   name: string;
@@ -15,15 +17,19 @@ type PairResult = {
   pairingSecret: string;
   status: "pending";
   approvalExpiresAt: string;
+  availablePermissions?: ConnectorPermission[];
+  requestedPermissions?: string[];
 };
 
 type PairStatus = {
   status: "pending" | "active" | "suspended" | "revoked" | "unlinked" | "expired";
   deviceId: string;
   grantedCapabilities: string[];
+  grantedPermissions?: string[];
+  availablePermissions?: ConnectorPermission[];
 };
 
-type DeviceMeResult = { device: DeviceProfile };
+type DeviceMeResult = { device: DeviceProfile; availablePermissions?: ConnectorPermission[] };
 
 @Injectable({ providedIn: "root" })
 export class ConnectedDevicesClient {
@@ -35,6 +41,7 @@ export class ConnectedDevicesClient {
   status: "unpaired" | "pending" | "active" = "unpaired";
   device: DeviceProfile | null = null;
   capabilities: string[] = [];
+  permissions: ConnectorPermission[] = [];
 
   setBaseUrl(value: string): void {
     const parsed = new URL(value.trim());
@@ -151,6 +158,7 @@ export class ConnectedDevicesClient {
     this.status = "pending";
     this.device = null;
     this.capabilities = [];
+    this.setPermissions(result.availablePermissions ?? []);
     console.info("[BEE-PAIR]", new Date().toISOString(), "CLIENT pair STATE UPDATED", {
       deviceId: this.deviceId,
       status: this.status
@@ -171,6 +179,7 @@ export class ConnectedDevicesClient {
         result = await this.request<PairStatus>("/connected-devices/pairing-status", {
           pairingSecret: this.credential
         });
+        this.setPermissions(result.availablePermissions ?? []);
       } catch (error) {
         const status = (error as { status?: number })?.status;
         if (status === 401 || status === 403 || status === 404) {
@@ -216,6 +225,7 @@ export class ConnectedDevicesClient {
       }
       this.device = result.device;
       this.deviceId = result.device.id;
+      this.setPermissions(result.availablePermissions ?? []);
       this.capabilities = Array.isArray(result.device.grantedCapabilities)
         ? result.device.grantedCapabilities
         : [];
@@ -253,11 +263,20 @@ export class ConnectedDevicesClient {
     this.clear();
   }
 
+  private setPermissions(permissions: ConnectorPermission[]): void {
+    this.permissions = Array.isArray(permissions) ? permissions.filter(item => !!item?.key && !!item?.label) : [];
+  }
+
+  permissionLabel(key: string): string {
+    return this.permissions.find(permission => permission.key === key)?.label ?? key;
+  }
+
   clear(): void {
     this.credential = "";
     this.deviceId = "";
     this.device = null;
     this.capabilities = [];
+    this.permissions = [];
     this.status = "unpaired";
   }
 }
